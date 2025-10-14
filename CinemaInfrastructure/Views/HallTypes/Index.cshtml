@@ -1,0 +1,37 @@
+﻿@model IEnumerable<CinemaDomain.Model.HallType>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Типи залів</h1>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Створити новий</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Назва</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name)
+            </td>
+            <td>
+                <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
+                <a class="btn btn-info btn-sm" asp-action="Details" asp-route-id="@item.Id">Зали</a>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "HallTypes", new { id = item.Id })', '@item.Name', 'тип залу')">
+                     Видалити
+                </button>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+
+

@@ -1,0 +1,49 @@
+﻿@model CinemaDomain.Model.Hall
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Змінити</h1>
+
+<h4>зал</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Name" class="control-label">Назва</label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="HallTypeId" class="control-label">Тип залу</label>
+                <select asp-for="HallTypeId" class="form-control" asp-items="ViewBag.HallTypeId"></select>
+                <span asp-validation-for="HallTypeId" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="NumberOfRows" class="control-label">Кількість рядів</label>
+                <input asp-for="NumberOfRows" class="form-control" />
+                <span asp-validation-for="NumberOfRows" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="SeatsInRow" class="control-label">Кількість місць в ряду</label>
+                <input asp-for="SeatsInRow" class="form-control" />
+                <span asp-validation-for="SeatsInRow" class="text-danger"></span>
+            </div>
+            <input type="hidden" asp-for="Id" />
+            <div class="form-group">
+                <input type="submit" value="Зберегти" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Назад</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

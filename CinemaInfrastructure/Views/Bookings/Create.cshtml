@@ -1,0 +1,161 @@
+﻿@model CinemaDomain.Model.Booking
+@{
+    ViewData["Title"] = "Створити бронювання";
+}
+
+<h1>Створити бронювання</h1>
+
+@* Відображення сумарних повідомлень про помилки *@
+<div asp-validation-summary="All" class="text-danger"></div>
+
+<form asp-action="Create" method="post">
+    <div class="form-group">
+        <label asp-for="ViewerId">Глядач</label>
+        <select asp-for="ViewerId" class="form-control" asp-items="@(ViewData["ViewerId"] as IEnumerable<SelectListItem>)">
+            <option value="">Оберіть глядача</option>
+        </select>
+        <span asp-validation-for="ViewerId" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label for="FilmId">Фільм</label>
+        <select id="FilmId" class="form-control">
+            <option value="">Оберіть фільм</option>
+            @foreach (var film in (ViewBag.Films as IEnumerable<CinemaDomain.Model.Film>) ?? Enumerable.Empty<CinemaDomain.Model.Film>())
+            {
+                if (ViewBag.SelectedFilmId != null && film.Id == (int)ViewBag.SelectedFilmId)
+                {
+                    <option value="@film.Id" selected="selected">@film.Name</option>
+                }
+                else
+                {
+                    <option value="@film.Id">@film.Name</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="SessionTime">Час сеансу</label>
+        <select id="SessionTime" name="SessionId" class="form-control">
+            <option value="">Оберіть час</option>
+        </select>
+        <span asp-validation-for="SessionId" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label>Вибір місця</label>
+        <!-- Контейнер для мапи залу -->
+        <div id="seat-map"></div>
+        <!-- Приховане поле для збереження id обраного місця -->
+        <input type="hidden" id="selectedSeatId" name="SeatId" value="" />
+    </div>
+    <input type="submit" value="Створити" class="btn btn-primary" />
+</form>
+<div>
+    <a asp-action="Index">Назад</a>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Зчитуємо з Razor ViewBag початкові значення
+            var initialFilm    = "@ViewBag.SelectedFilmId";
+            var initialSession = "@ViewBag.SelectedSessionId";
+
+            // 1) Обробник зміни вибору фільму
+            $("#FilmId").change(function () {
+                var filmId = $(this).val();
+
+                // Очищаємо попередній список сеансів і карту залу
+                $("#SessionTime")
+                  .empty()
+                  .append('<option value="">Оберіть час</option>')
+                  .prop("disabled", true);
+                $("#seat-map").empty();
+                $("#selectedSeatId").val("");
+
+                if (filmId) {
+                    $.ajax({
+                        url: '@Url.Action("GetSessionsByFilm", "Bookings")',
+                        data: { filmId: filmId },
+                        success: function (data) {
+                            $.each(data, function (i, session) {
+                                $("#SessionTime")
+                                  .append(
+                                    '<option value="' + session.id + '">' +
+                                    session.time +
+                                    '</option>'
+                                  );
+                            });
+                            $("#SessionTime").prop("disabled", false);
+
+                            // Якщо у нас прийшов initialSession — встановлюємо його
+                            if (initialSession) {
+                                $("#SessionTime")
+                                  .val(initialSession)
+                                  .trigger("change");
+                                // щоб не спрацьовувало вдруге
+                                initialSession = null;
+                            }
+                        }
+                    });
+                }
+            });
+
+            // 2) Обробник зміни вибору сеансу
+            $("#SessionTime").change(function () {
+                var sessionId = $(this).val();
+                $("#seat-map").empty();
+                $("#selectedSeatId").val("");
+
+                if (sessionId) {
+                    $.ajax({
+                        url: '@Url.Action("GetSeatMap", "Bookings")',
+                        data: { sessionId: sessionId },
+                        success: function (data) {
+                            buildSeatMap(data);
+                        }
+                    });
+                }
+            });
+
+            // 3) Функція побудови карти залу (без змін)
+            function buildSeatMap(seats) {
+                var grouped = {};
+                $.each(seats, function (i, seat) {
+                    (grouped[seat.row] = grouped[seat.row] || []).push(seat);
+                });
+
+                var $map = $("<table class='seat-map-table'></table>");
+                $.each(grouped, function (row, seatsInRow) {
+                    var $tr = $("<tr></tr>")
+                      .append("<td class='row-label'>" + row + "</td>");
+                    $.each(seatsInRow, function (i, seat) {
+                        var $btn = $("<button type='button' class='seat-btn'></button>")
+                          .text(seat.numberInRow)
+                          .attr("data-seat-id", seat.id);
+
+                        if (seat.isBooked) {
+                            $btn.addClass("booked").prop("disabled", true);
+                        } else {
+                            $btn.addClass("available")
+                                .on("click", function () {
+                                    $(".seat-btn.available")
+                                      .removeClass("selected");
+                                    $(this).addClass("selected");
+                                    $("#selectedSeatId")
+                                      .val($(this).data("seat-id"));
+                                });
+                        }
+                        $tr.append($("<td></td>").append($btn));
+                    });
+                    $map.append($tr);
+                });
+                $("#seat-map").html($map);
+            }
+
+            // 4) Якщо передано initialFilm — відразу тригеримо його change()
+            if (initialFilm) {
+                $("#FilmId").val(initialFilm).trigger("change");
+            }
+        });
+    </script>
+}

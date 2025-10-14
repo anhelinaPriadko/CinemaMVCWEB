@@ -1,0 +1,35 @@
+﻿@model IEnumerable<CinemaDomain.Model.Viewer>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Глячі</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Електронна адреса</th>
+            <th>Ім'я</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.User.Email)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name)
+            </td>
+            <td>
+                <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
+                <a class="btn btn-info btn-sm" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
+                <a class="btn btn-info btn-sm" asp-action="DetailsByRatings" asp-route-id="@item.Id">Залишені відгуки</a>
+                <a class="btn btn-info btn-sm" asp-action="DetailsByBookings" asp-route-id="@item.Id">Бронювання</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

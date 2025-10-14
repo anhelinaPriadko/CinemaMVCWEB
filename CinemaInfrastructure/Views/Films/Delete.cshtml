@@ -1,0 +1,45 @@
+﻿@model CinemaDomain.Model.Film
+
+@{
+    ViewData["Title"] = "Видалення";
+}
+
+<h1>Видалення</h1>
+
+<h3>Ви впевнені, що хочете видалити цей фільм?</h3>
+<div>
+    <h4>Фільм</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">
+            Дата виходу
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.ReleaseDate)
+        </dd>
+        <dt class="col-sm-2">
+            Опис
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Description)
+        </dd>
+        <dt class="col-sm-2">
+            Компанія
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Company.Name)
+        </dd>
+        <dt class="col-sm-2">
+            Категорія фільму
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.FilmCategory.Name)
+        </dd>
+    </dl>
+    
+    <form asp-action="Delete" method="post" onsubmit="return confirm('Ви дійсно хочете видалити цей фільм?');">
+        <input type="hidden" asp-for="Id" />
+        <input type="submit" value="Видалити" class="btn btn-danger" /> |
+        <a asp-action="Index" class="btn btn-secondary">Назад</a>
+    </form>
+</div>

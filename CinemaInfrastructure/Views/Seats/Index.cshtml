@@ -1,0 +1,42 @@
+﻿@model IEnumerable<CinemaDomain.Model.Seat>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Місця</h1>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Створити новий</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Ряд</th>
+            <th>Місце</th>
+            <th>Зал</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Row)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.NumberInRow)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Hall.Name)
+            </td>
+            <td>
+                <a class="btn btn-info btn-sm" asp-action="DetailsByBookings" asp-route-id="@item.Id">Бронювання</a>
+                    <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Seats", new { id = item.Id })', 'ряду @item.Row', 'місце @item.NumberInRow')">
+                    Видалити
+                </button>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

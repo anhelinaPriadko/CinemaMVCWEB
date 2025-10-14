@@ -1,0 +1,44 @@
+﻿@model CinemaDomain.Model.Film
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<h1>Детально</h1>
+
+<div>
+    <h4>фільм</h4>
+    <hr />
+    <dl class="row">
+        <div class="mb-4 text-left">
+            <img src="@Url.Content(Model.PosterPath)" alt="@Model.Name" class="img-fluid rounded" style="max-height: 300px;" />
+        </div>
+        <dt class="col-sm-2">Назва</dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Name)
+        </dd>
+        <dt class="col-sm-2">Категорія фільму</dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.FilmCategory.Name)
+        </dd>
+        <dt class="col-sm-2">Виробник</dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Company.Name)
+        </dd>
+        <dt class = "col-sm-2">Дата виходу</dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ReleaseDate)
+        </dd>
+        <dt class = "col-sm-2">Опис</dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Description)
+        </dd>
+    </dl>
+</div>
+<div>
+    @if(User.IsInRole("superadmin"))
+    {
+        <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+    }
+    <a asp-action="Index">Назад</a>
+</div>

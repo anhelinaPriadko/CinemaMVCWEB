@@ -1,0 +1,43 @@
+﻿@model IEnumerable<CinemaDomain.Model.FilmRating>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Оцінки</h1>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Створити нову</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Назва фільму</th>
+            <th>Користувач</th>
+            <th>Оцінка</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Film.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Viewer.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Rating)
+            </td>
+            <td>
+                    <button class="btn btn-danger btn-sm"
+                            onclick="confirmDelete('@Url.Action("Delete", "FilmRatings", new { filmId = item.FilmId, viewerId = item.ViewerId })', 'користувача @item.Viewer.Name для фільму @item.Film.Name', 'відгук')">
+                        Видалити
+                    </button>
+
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

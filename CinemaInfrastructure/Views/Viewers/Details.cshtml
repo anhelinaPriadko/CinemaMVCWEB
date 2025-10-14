@@ -1,0 +1,30 @@
+﻿@model CinemaDomain.Model.Viewer
+
+@{
+    ViewData["Title"] = "Details";
+}
+
+<h1>Details</h1>
+
+<div>
+    <h4>Viewer</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">Електронна адреса</dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.User.Email)
+        </dd>
+        <dt class = "col-sm-2">Ім'я</dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Name)
+        </dd>
+        <dt class = "col-sm-2">Дата народження</dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.DateOfBirth)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+    <a asp-action="Index">Назад</a>
+</div>

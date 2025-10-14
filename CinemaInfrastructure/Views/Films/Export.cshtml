@@ -1,0 +1,24 @@
+﻿@{
+    ViewBag.Title = "Експорт фільмів у Excel";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-5">
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body">
+            <h3 class="card-title mb-4">📤 Експорт фільмів у Excel</h3>
+            <p class="mb-3">Натисніть кнопку, щоб отримати файл з інформацією про всі фільми.</p>
+
+            @using (Html.BeginForm("Export", "Films", FormMethod.Post, new { id = "frm-export" }))
+            {
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Завантажити Excel
+                </button>
+            }
+
+            <a asp-action="Index">Назад</a>
+        </div>
+    </div>
+</div>

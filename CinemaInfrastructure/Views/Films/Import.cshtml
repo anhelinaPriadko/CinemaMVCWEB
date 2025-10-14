@@ -1,0 +1,27 @@
+﻿@{
+    ViewBag.Title = "Імпорт фільмів з Excel";
+    Layout = "~/Views/Shared/_Layout.cshtml"; // якщо використовуєш Layout
+}
+
+<div class="container mt-5">
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body">
+            <h3 class="card-title mb-4">📥 Імпорт фільмів з Excel</h3>
+
+            @using (Html.BeginForm("Import", "Films", FormMethod.Post, new { enctype = "multipart/form-data", id = "frm-excel" }))
+            {
+                <div class="mb-3">
+                    <label for="fileExcel" class="form-label">Оберіть Excel-файл (.xlsx):</label>
+                    <input type="file" name="fileExcel" id="fileExcel" accept=".xlsx" class="form-control" required />
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-upload"></i> Завантажити
+                    </button>
+                </div>
+                <a asp-action="Index">Назад</a>
+            }
+        </div>
+    </div>
+</div>
+

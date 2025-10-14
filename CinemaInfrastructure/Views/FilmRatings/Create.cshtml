@@ -1,0 +1,41 @@
+﻿@model CinemaDomain.Model.FilmRating
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Створити</h1>
+
+<h4>оцінку</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="ViewerId" class="control-label">Глядач</label>
+                <select asp-for="ViewerId" class ="form-control" asp-items="ViewBag.ViewerId"></select>
+            </div>
+            <div class="form-group">
+                <label asp-for="FilmId" class="control-label">Фільм</label>
+                <select asp-for="FilmId" class ="form-control" asp-items="ViewBag.FilmId"></select>
+            </div>
+            <div class="form-group">
+                <label asp-for="Rating" class="control-label">Оцінка</label>
+                <input asp-for="Rating" class="form-control" />
+                <span asp-validation-for="Rating" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Створити" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Назад</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

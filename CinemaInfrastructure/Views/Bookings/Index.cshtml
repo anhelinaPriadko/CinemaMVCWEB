@@ -1,0 +1,68 @@
+﻿@model IEnumerable<CinemaDomain.Model.Booking>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Бронювання</h1>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Створити нове</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Фільм</th>
+            <th>Час сеансу</th>
+            <th>Ряд</th>
+            <th>Місце</th>
+            @if (User.IsInRole("superadmin"))
+            {
+                <th>Глядач</th>
+            }
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            var isPast = item.Session.SessionTime < DateTime.Now;
+
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.Session.Film.Name)</td>
+                <td>@item.Session.SessionTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@Html.DisplayFor(modelItem => item.Seat.Row)</td>
+                <td>@Html.DisplayFor(modelItem => item.Seat.NumberInRow)</td>
+                @if (User.IsInRole("superadmin"))
+                {
+                    <td>@Html.DisplayFor(modelItem => item.Viewer.Name)</td>
+                }
+                <td>
+                    @if (!isPast)
+                    {
+                        <a class="btn btn-warning btn-sm"
+                           asp-action="Edit"
+                           asp-route-viewerId="@item.ViewerId"
+                           asp-route-sessionId="@item.SessionId"
+                           asp-route-seatId="@item.SeatId">
+                            Редагувати
+                        </a>
+                    }
+                    <a class="btn btn-info btn-sm"
+                       asp-action="Details"
+                       asp-route-viewerId="@item.ViewerId"
+                       asp-route-sessionId="@item.SessionId"
+                       asp-route-seatId="@item.SeatId">
+                        Деталі
+                    </a>
+                    @if (!isPast)
+                    {
+                        <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Bookings", new { viewerId = item.ViewerId, sessionId = item.SessionId, seatId = item.SeatId})', 'користувача @item.Viewer.Name на фільм @item.Session.Film.Name', 'бронювання')">
+                            Видалити
+                        </button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,90 @@
+﻿@model IEnumerable<CinemaDomain.Model.Session>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Сеанси</h1>
+
+@if (User.IsInRole("superadmin"))
+{
+    <p>
+        <a class="btn btn-primary" asp-action="Create">Створити новий</a>
+    </p>
+    <form method="get" asp-action="Index" class="form-inline mb-3">
+        <label for="filter" class="mr-2">Фільтр:</label>
+        @{
+            var selected = ViewBag.SelectedFilter?.ToString();
+        }
+        <select name="filter" id="filter" class="form-control mr-2" style="width: 150px;" onchange="this.form.submit()">
+            <option value="All" selected="@(selected == "All")">Всі</option>
+            <option value="Past" selected="@(selected == "Past")">Завершені</option>
+            <option value="Ongoing" selected="@(selected == "Ongoing")">Розпочаті</option>
+            <option value="Upcoming" selected="@(selected == "Upcoming")">Майбутні</option>
+        </select>
+    </form>
+}
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Назва фільму</th>
+            <th>Дата</th>
+            <th>Тривалість</th>
+            <th>Зал</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            var isPast = item.SessionTime < DateTime.Now;
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Film.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.SessionTime)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Duration)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Hall.Name)
+                </td>
+                <td>
+                    @if (User.IsInRole("superadmin") && !isPast)
+                    {
+                        <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
+                    }
+                    <a class="btn btn-info btn-sm" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
+                    @if(!isPast)
+                    {
+                        if (User.Identity.IsAuthenticated)
+                        {
+                            <a asp-controller="Bookings"
+                            asp-action="Create"
+                            asp-route-FilmId="@item.FilmId"
+                            asp-route-sessionId="@item.Id"
+                            class="btn btn-sm btn-primary">
+                                Забронювати
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Account" asp-action="Login" 
+                            class="btn btn-sm btn-primary">Забронювати</a>
+                        }
+                    }
+                    @if (User.IsInRole("superadmin") && !isPast)
+                    {
+                        <a class="btn btn-info btn-sm" asp-action="DetailsByBookings" asp-route-id="@item.Id">Бронювання</a>
+                        <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Sessions", new { id = item.Id })', 'фільму @item.Film.Name @item.SessionTime.ToString("dd.MM.yyyy HH.mm")', 'сеанс' )">
+                            Видалити
+                        </button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,49 @@
+﻿@model IEnumerable<CinemaDomain.Model.Hall>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+
+<h1>Зали</h1>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Створити новий</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Назва </th>
+            <th>Кількість рядів</th>
+            <th>Кількість місць в ряду</th>
+            <th>Тип залу</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.NumberOfRows)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.SeatsInRow)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.HallType.Name)
+            </td>
+            <td>
+                <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
+                <a class="btn btn-info btn-sm" asp-action="DetailsBySeats" asp-route-id="@item.Id">Місця</a>
+                <a class="btn btn-info btn-sm" asp-action="DetailsBySessions" asp-route-id="@item.Id">Сеанси</a>
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Halls", new { id = item.Id })', '@item.Name', 'тип залу')">
+                     Видалити
+                </button>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

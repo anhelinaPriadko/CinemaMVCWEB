@@ -1,0 +1,113 @@
+﻿@model CinemaDomain.Model.Film
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+@{
+    var posterFileName = System.IO.Path.GetFileName(Model.PosterPath);
+}
+
+<h1>Змінити</h1>
+
+<h4>фільм</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit" enctype="multipart/form-data">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @if (!string.IsNullOrEmpty(Model?.PosterPath))
+            {
+                <div class="mb-3 text-center">
+                    <img id="posterPreview" src="@Url.Content(Model.PosterPath)" alt="@Model.Name" class="img-fluid rounded" style="max-height: 300px;" />
+                </div>
+            }
+            else
+            {
+                <div class="mb-3 text-center">
+                    <img id="posterPreview" src="~/img/empty_film_image.png" alt="No image" class="img-fluid rounded" style="max-height: 300px;" />
+                </div>
+            }
+
+            <div class="form-group">
+                <label for="PosterFile" class="control-label">Постер фільму</label>
+
+                <div class="input-group">
+                    <input type="file" name="PosterFile" id="PosterFile" class="form-control d-none" />
+
+                    <!-- Текстове поле для відображення вибраного файлу -->
+                    <input type="text" id="file-name" class="form-control" value="@posterFileName" readonly />
+
+                    <!-- Кнопка вибору файлу -->
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('PosterFile').click();">
+                        Обрати файл
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label asp-for="Name" class="control-label">Назва</label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FilmCategoryId" class="control-label">Категорія фільму</label>
+                <select asp-for="FilmCategoryId" class="form-control" asp-items="ViewBag.FilmCategoryId"></select>
+                <span asp-validation-for="FilmCategoryId" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="CompanyId" class="control-label">Виробник</label>
+                <select asp-for="CompanyId" class="form-control" asp-items="ViewBag.CompanyId"></select>
+                <span asp-validation-for="CompanyId" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ReleaseDate" class="control-label">Дата виходу</label>
+                <input asp-for="ReleaseDate" class="form-control" />
+                <span asp-validation-for="ReleaseDate" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Description" class="control-label">Опис</label>
+                <input asp-for="Description" class="form-control" />
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+            <input type="hidden" asp-for="Id" />
+            <div class="form-group">
+                <input type="submit" value="Зберегти" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Назад</a>
+</div>
+
+<script>
+    document.getElementById("PosterFile").addEventListener("change", function() {
+        var fileName = this.files[0] ? this.files[0].name : "Оберіть файл";
+        document.getElementById("file-name").value = fileName;
+    });
+
+    document.getElementById("PosterFile").addEventListener("change", function (event) {
+        const file = event.target.files[0];
+        const preview = document.getElementById("posterPreview");
+        const fileNameField = document.getElementById("file-name");
+
+        if (file) {
+            fileNameField.value = file.name;
+
+            // Створюємо локальний URL для прев’ю
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            fileNameField.value = "Оберіть файл";
+        }
+    });
+</script>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

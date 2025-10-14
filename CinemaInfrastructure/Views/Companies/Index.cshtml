@@ -1,0 +1,36 @@
+﻿@model IEnumerable<CinemaDomain.Model.Company>
+
+@{
+    ViewData["Title"] = "Виробники фільмів";
+}
+
+<h1>Компанії</h1>
+
+<p>
+    <a class="btn btn-primary" asp-action="Create">Створити нову</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Назва</th>
+            <th>Дії</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                <td>
+                    <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
+                    <a class="btn btn-info btn-sm" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
+                    <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Companies", new { id = item.Id })', '@item.Name', 'компанію')">
+                        Видалити
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
