@@ -1,0 +1,18 @@
+﻿@{
+    var hasErrors = !ViewData.ModelState.IsValid;
+}
+@if (hasErrors)
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>Виявлено помилки:</strong>
+        <ul class="mb-0">
+            @foreach (var kv in ViewData.ModelState.Where(m => m.Value.Errors.Count > 0))
+            {
+                foreach (var err in kv.Value.Errors)
+                {
+                    <li>@err.ErrorMessage</li>
+                }
+            }
+        </ul>
+    </div>
+}

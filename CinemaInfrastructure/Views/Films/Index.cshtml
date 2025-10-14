@@ -20,57 +20,55 @@
     </div>
 }
 
-<div class="row">
-    @foreach (var item in Model)
-    {
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-body text-center">
-                    <div class="mb-2">
-                        @if (!string.IsNullOrEmpty(item.PosterPath))
-                        {
-                            <img src="@Url.Content(item.PosterPath)" class="img-fluid rounded" alt="@item.Name" style="max-height: 350px;" />
-                        }
-                        else
-                        {
-                            <div class="text-muted">Немає зображення</div>
-                        }
-                    </div>
-                    <h5 class="card-title">@item.Name</h5>
-                    <div class="d-flex justify-content-center gap-2 mt-2">
-                        @if (User.IsInRole("superadmin"))
-                        {
-                            <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
-                        }
-                        <a class="btn btn-info btn-sm" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
-                        
-                        @if (User.Identity.IsAuthenticated)
-                        {
-                            <a asp-controller="Bookings"
-                               asp-action="Create"
-                               asp-route-FilmId="@item.Id"
-                               class="btn btn-primary">
-                                Забронювати
-                            </a>
-                        }
-                        else
-                        {
-                            <a asp-controller="Account" asp-action="Login"
-                               class="btn btn-sm btn-primary">Забронювати</a>
-                        }
-                        @if (User.IsInRole("superadmin"))
-                        {
-                            <button type="button" class="btn btn-danger btn-sm"
-                                    onclick="confirmDelete('@Url.Action("Delete", "Films", new { id = item.Id })', '@item.Name', 'фільм')">
-                                Видалити
-                            </button>
-                        }
+<div class="container movie-grid">
+    <div class="row">
+        @foreach (var item in Model)
+        {
+            <div class="movie-col">
+                <div class="movie-card card shadow-sm">
+                    @if (!string.IsNullOrEmpty(item.PosterPath))
+                    {
+                        <img src="@Url.Content(item.PosterPath)" class="movie-poster" alt="@item.Name" />
+                    }
+                    else
+                    {
+                        <div class="movie-noimage">Немає зображення</div>
+                    }
+
+                    <div class="movie-card-body">
+                        <h5 class="movie-title" title="@item.Name">@item.Name</h5>
+
+                        <div class="movie-card-actions">
+                            @if (User.IsInRole("superadmin"))
+                            {
+                                <a class="btn btn-warning btn-sm" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
+                            }
+
+                            <a class="btn btn-info btn-sm" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
+
+                            @if (User.Identity.IsAuthenticated)
+                            {
+                                <a asp-controller="Bookings" asp-action="Create" asp-route-FilmId="@item.Id" class="btn btn-primary btn-sm">Забронювати</a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-sm">Забронювати</a>
+                            }
+
+                            @if (User.IsInRole("superadmin"))
+                            {
+                                <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Films", new { id = item.Id })', '@item.Name', 'фільм')">Видалити</button>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    }
+        }
+    </div>
 </div>
+
+
+
 
 @section Scripts {
     <script>

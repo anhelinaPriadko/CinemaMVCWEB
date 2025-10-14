@@ -1,33 +1,77 @@
 ﻿@model CinemaInfrastructure.ViewModel.RegisterViewModel
-<h2>Реєстрація нового користувача</h2>
-<form method="post" asp-controller="Account" asp-action="Register">
-    <div asp-validation-summary="ModelOnly"></div>
-    <div>
-        <label asp-for="Name">Ім'я</label><br />
-        <input asp-for="Name" />
-        <span asp-validation-for="Name"></span>
-    </div>
-    <div>
-        <label asp-for="DateOfBirth">Дата народження</label><br />
-        <input asp-for="DateOfBirth" type="date" />
-        <span asp-validation-for="DateOfBirth"></span>
-    </div>
-    <div>
-        <label asp-for="Email"></label><br />
-        <input asp-for="Email" />
-        <span asp-validation-for="Email"></span>
-    </div>
-    <div>
-        <label asp-for="Password"></label><br />
-        <input asp-for="Password" />
-        <span asp-validation-for="Password"></span>
-    </div>
-    <div>
-        <label asp-for="PasswordConfirm"></label><br />
-        <input asp-for="PasswordConfirm" />
-        <span asp-validation-for="PasswordConfirm"></span>
-    </div>
-    <div>
-        <input type="submit" value="Реєстрація" />
-    </div>
-</form>
+
+@{
+    ViewData["Title"] = "Реєстрація";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="h4 mb-3 text-center">Реєстрація нового користувача</h2>
+
+                    <partial name="_ValidationSummary" />
+
+                    <form method="post" asp-controller="Account" asp-action="Register" asp-antiforgery="true" novalidate>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label asp-for="Name" class="form-label">Ім'я</label>
+                                <input asp-for="Name" class="form-control @(ViewData.ModelState[nameof(Model.Name)]?.Errors.Count > 0 ? "is-invalid" : "")" placeholder="Ім'я та прізвище" />
+                                <div class="invalid-feedback">
+                                    <span asp-validation-for="Name"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="DateOfBirth" class="form-label">Дата народження</label>
+                                <input asp-for="DateOfBirth" type="date" class="form-control @(ViewData.ModelState[nameof(Model.DateOfBirth)]?.Errors.Count > 0 ? "is-invalid" : "")" />
+                                <div class="invalid-feedback">
+                                    <span asp-validation-for="DateOfBirth"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Email" class="form-label">Email</label>
+                                <input asp-for="Email" class="form-control @(ViewData.ModelState[nameof(Model.Email)]?.Errors.Count > 0 ? "is-invalid" : "")" placeholder="your@mail.com" />
+                                <div class="invalid-feedback">
+                                    <span asp-validation-for="Email"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="Password" class="form-label">Пароль</label>
+                                <input asp-for="Password" type="password" class="form-control @(ViewData.ModelState[nameof(Model.Password)]?.Errors.Count > 0 ? "is-invalid" : "")" placeholder="Мінімум 6 символів" />
+                                <div class="invalid-feedback">
+                                    <span asp-validation-for="Password"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="PasswordConfirm" class="form-label">Підтвердження паролю</label>
+                                <input asp-for="PasswordConfirm" type="password" class="form-control @(ViewData.ModelState[nameof(Model.PasswordConfirm)]?.Errors.Count > 0 ? "is-invalid" : "")" placeholder="Повторіть пароль" />
+                                <div class="invalid-feedback">
+                                    <span asp-validation-for="PasswordConfirm"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-text text-muted mt-2">Натискаючи «Реєстрація», ви погоджуєтесь з правилами використання.</div>
+
+                        <div class="d-grid mt-3">
+                            <button type="submit" class="btn btn-primary btn-lg">Реєстрація</button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <span class="small text-muted">Вже маєте акаунт?</span>
+                            <a asp-action="Login" asp-controller="Account">Увійти</a>
+                        </div>
+                    </form>
+                </div> <!-- card-body -->
+            </div> <!-- card -->
+        </div> <!-- col -->
+    </div> <!-- row -->
+</div> <!-- container -->
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

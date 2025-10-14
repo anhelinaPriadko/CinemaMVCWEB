@@ -1,33 +1,57 @@
 html {
-  font-size: 14px;
+    font-size: 14px;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+/*Шрифти*/
+:root {
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
+    --font-heading: "Montserrat", var(--font-sans);
 }
 
 body {
-  margin-bottom: 60px;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+h1, h2, h3, .movie-title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.btn {
+    font-family: var(--font-sans);
+    font-weight: 600;
+}
+
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin-bottom: 60px;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+    color: var(--bs-secondary-color);
+    text-align: end;
 }
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+    text-align: start;
 }
 
 
@@ -65,4 +89,324 @@ body {
 /* Приклад стилів для лівої колонки */
 .container .row {
     margin-top: 10px;
+}
+
+.btn {
+    display: inline-flex;
+    width: auto;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 10px;
+    font-size: 1rem;
+    border-radius: 5px;
+}
+
+
+/* ===== Movie cards: modern, responsive ===== */
+.movie-grid {
+    padding-top: 0.5rem;
+    padding-bottom: 1rem;
+}
+
+    /* Row: використовуємо flex-justify для центрування при невеликій кількості колонок */
+    .movie-grid .row {
+        display: flex;
+        justify-content: space-between!important;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center; /* центруємо коли мало колонок */
+    }
+
+/* Колонка: bootstrap .col працює, але додамо flex для вирівнювання карток однаково */
+.movie-col {
+    display: flex;
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+/* Card */
+.movie-card {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    border-radius: .5rem;
+    overflow: hidden;
+    transition: transform .18s ease, box-shadow .18s ease;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06);
+}
+
+    .movie-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 22px rgba(0,0,0,.12);
+    }
+
+/* Poster: уніфікована висота + object-fit */
+.movie-poster {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+    border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+/* Body: витягуємо кнопку вниз */
+.movie-card-body {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    gap: .5rem;
+    min-height: 100px; /* підганяй під poster + title + desc */
+}
+
+/* Title & meta */
+.movie-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    white-space: nowrap;
+    /*    align-self: center;*/
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Короткий опис: обрізаємо після 3 рядків */
+.movie-desc {
+    font-size: .92rem;
+    color: #444;
+    margin: 0.35rem 0 .5rem 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Кнопки: центр, wrap */
+.movie-card-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-top: auto; /* витискає вниз */
+}
+
+    /* Кнопки - компактні, не ламаються */
+    .movie-card-actions .btn {
+        white-space: nowrap;
+        min-width: 96px;
+        flex: 0 1 auto;
+    }
+
+/* На дуже вузьких екранах: кнопки блокові, щоб не наповзати */
+@media (max-width: 420px) {
+    .movie-card-actions .btn {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+}
+
+/* Контейнери колонок: визначаємо кількість колонок через ширину */
+@media (max-width: 575.98px) {
+    /* XS: 1 колонка */
+    .movie-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 576px) and (max-width: 991.98px) {
+    /* SM–MD: 2 колонки */
+    .movie-col {
+        flex: 0 0 48%;
+        max-width: 48%;
+    }
+}
+
+@media (min-width: 992px) {
+    /* LG+: 3 колонки */
+    .movie-col {
+        flex: 0 0 30%;
+        max-width: 30%;
+    }
+}
+
+/* Дрібні косметичні правки */
+.movie-noimage {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg,#f7f7f9,#fff);
+    color: #888;
+    font-size: .95rem;
+}
+
+/* Layout – spacing and alignment (no color changes) */
+
+/* Auth area in navbar: зручні відступи */
+.auth-area .user-info {
+    text-align: right;
+    line-height: 1;
+}
+
+    .auth-area .user-info .small {
+        opacity: .8;
+    }
+
+/* Flash wrapper: центр контенту та максимальна ширина */
+.flash-wrapper .alert {
+    max-width: 980px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: .5rem;
+}
+
+/* Основний контент */
+.content-wrapper {
+    max-width: 1140px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Форма в картці (global helper) */
+.form-card {
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+    /* Поля форм: трохи більший padding для touch */
+    .form-card .form-control {
+        padding: .625rem .75rem;
+        border-radius: .375rem;
+    }
+
+    /* Кнопки у формі */
+    .form-card .btn {
+        padding: .6rem 1rem;
+        font-weight: 600;
+    }
+
+/* Центрування login/register карток */
+.centered-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+}
+
+/* Footer: трохи менше відступів, акуратно */
+.footer {
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+}
+
+/* Mobile tweaks */
+@media (max-width: 576px) {
+    .auth-area {
+        gap: .4rem;
+    }
+
+    .movie-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+
+#mainNavbar li a {
+    font-size: 1.05rem; /* 1rem = 16px (за твоїм body) */
+    line-height: 1.55; /* відповідно до body */
+    font-family: var(--font-sans);
+    font-weight: 600;
+}
+
+/* Покращення навігації */
+.navbar-brand,
+.navbar-nav .nav-link {
+        color: #343a40 !important; /* Темно-сірий колір, який гарно виглядає на білому тлі */
+        transition: color 0.3s ease;
+}
+
+    .navbar-nav .nav-link:hover {
+            color: #212529 !important;
+    }
+
+/* Приберімо фон кнопки-бургера */
+.navbar-toggler {
+        background-color: transparent;
+        border: 1px solid rgba(0,0,0,.1);
+}
+
+/* Збільшення базового шрифту для кращої читабельності */
+html {
+        font-size: 16px; /* Збільшуємо базовий розмір */
+}
+
+/* Використаємо більші заголовки для більшої ваги */
+h1 {
+    font-size: 2.25rem;
+}
+
+h2 {
+    font-size: 1.75rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+}
+
+/* Більш гармонійні відступи */
+.container.main-content {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+}
+
+.py-4 {
+        padding-top: 3rem !important;
+        padding-bottom: 3rem !important;
+}
+
+/* Картки */
+.movie-card {
+       
+    /* Збільшимо заокруглення кутів, щоб картка виглядала м'якше */
+        border-radius: 1rem;
+       
+    /* Зробимо тінь м'якшою, але трохи помітнішою */
+        box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+
+    .movie-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 28px rgba(0,0,0,.15);
+    }
+
+.movie-poster {
+       
+    /* Заокруглюємо лише верхні кути, щоб постер ідеально вписався */
+        border-top-left-radius: 1rem;
+        border-top-right-radius: 1rem;
+}
+
+/* Кнопки */
+.btn {
+       
+    /* Трохи збільшимо заокруглення для всіх кнопок */
+        border-radius: .5rem;
+       
+    /* Зробимо відступи більш зручними для натискання */
+        padding: .5rem 1rem;
+}
+
+.movie-card-actions .btn {
+        padding: .6rem .8rem;
+}
+
+.btn-primary, .btn-secondary {
+        font-weight: 700;
+}
+
+.account-buttons{
+    display: flex;
+    gap: 5px;
 }
