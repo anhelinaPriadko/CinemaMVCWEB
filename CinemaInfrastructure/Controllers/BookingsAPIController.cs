@@ -28,6 +28,35 @@ namespace CinemaInfrastructure.Controllers
             _context = context;
         }
 
+        private async Task<ActionResult<Booking>?> ValidateBookingCreationAsync(int sessionId, int seatId)
+        {
+            var session = await _context.Sessions
+                .Include(s => s.Hall)
+                .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+            if (session == null)
+            {
+                return BadRequest(new { Error = "Сеанс з таким ID не знайдено." });
+            }
+
+            TimeSpan delayTolerance = TimeSpan.FromMinutes(15);
+            if (session.SessionTime.Add(delayTolerance) < DateTime.Now)
+            {
+                return BadRequest(new { Error = "Сеанс вже почався і час для бронювання вичерпано." });
+            }
+
+            var seatExists = await _context.Seats.AnyAsync(s =>
+                s.Id == seatId && s.HallId == session.HallId);
+
+            if (!seatExists)
+            {
+                return BadRequest(new { Error = "Місце з таким ID не знайдено в залі для цього сеансу." });
+            }
+
+            return null;
+        }
+
+
         // GET: api/BookingsAPI
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Booking>>> GetBookings()
@@ -97,6 +126,15 @@ namespace CinemaInfrastructure.Controllers
                 return Ok(new { Status = "Ok", Message = "Бронювання місця не вимагає оновлення." });
             }
 
+            var validationResult = await ValidateBookingCreationAsync(sessionId, booking.SeatId);
+            if (validationResult != null)
+            {
+                if (validationResult.Result != null)
+                    return validationResult.Result;
+
+                return BadRequest(new { Error = "Введено не валідні дані." });
+            }
+
             if (await BookingExistsAsync(sessionId, booking.SeatId))
             {
                 return BadRequest(new { Error = "Обране місце вже заброньовано!" });
@@ -127,7 +165,17 @@ namespace CinemaInfrastructure.Controllers
         [HttpPost]
         public async Task<ActionResult<Booking>> PostBooking(Booking booking)
         {
-            if(await BookingExistsAsync(booking.SessionId, booking.SeatId))
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var validationResult = await ValidateBookingCreationAsync(booking.SessionId, booking.SeatId);
+            if (validationResult != null)
+            {
+                return validationResult;
+            }
+            if (await BookingExistsAsync(booking.SessionId, booking.SeatId))
             {
                 return BadRequest(new { Error = "Обране місце вже заброньовано!" });
             }
@@ -150,7 +198,7 @@ namespace CinemaInfrastructure.Controllers
             }
             return CreatedAtAction("GetBooking",
                 new { viewerId = booking.ViewerId, sessionId = booking.SessionId, seatId = booking.SeatId },
-                new { Status = "Ok" }); // Змінено на "Ok" згідно з вашим завданням
+                new { Status = "Ok" });
         }
 
         // DELETE: api/BookingsAPI/1/10/2 (ViewerId, SessionId, SeatId)
