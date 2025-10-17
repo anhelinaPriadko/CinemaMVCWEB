@@ -21,18 +21,33 @@ namespace CinemaInfrastructure.Controllers
             _context = context;
         }
 
+        private async Task<bool> HallExistsAsync(int id)
+        {
+            return await _context.Halls.AnyAsync(e => e.Id == id);
+        }
+
+        private async Task<bool> HallNameExistsAsync(string name)
+        {
+            return await _context.Halls.AnyAsync(e => e.Name.ToLower() == name.ToLower());
+        }
+
+        private async Task<bool> HallTypeExistsAsync(int hallTypeId)
+        {
+            return await _context.HallTypes.AnyAsync(e => e.Id == hallTypeId);
+        }
+
         // GET: api/HallsAPI
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Hall>>> GetHalls()
         {
-            return await _context.Halls.ToListAsync();
+            return await _context.Halls.Include(h => h.HallType).ToListAsync();
         }
 
         // GET: api/HallsAPI/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Hall>> GetHall(int id)
         {
-            var hall = await _context.Halls.FindAsync(id);
+            var hall = await _context.Halls.Include(h => h.HallType).FirstOrDefaultAsync(h => h.Id == id);
 
             if (hall == null)
             {
@@ -49,7 +64,29 @@ namespace CinemaInfrastructure.Controllers
         {
             if (id != hall.Id)
             {
-                return BadRequest();
+                return BadRequest(new { Error = "ID у маршруті не відповідає ID у тілі запиту." });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (!await HallTypeExistsAsync(hall.HallTypeId))
+            {
+                return BadRequest(new { Error = "Вказаний тип залу не знайдено." });
+            }
+
+            var existingHall = await _context.Halls.AsNoTracking().FirstOrDefaultAsync(h => h.Id == id);
+
+            if (existingHall == null)
+            {
+                return NotFound(new { Error = "Зал не знайдено." });
+            }
+
+            if (existingHall.Name.ToLower() != hall.Name.ToLower() && await HallNameExistsAsync(hall.Name))
+            {
+                return BadRequest(new { Error = $"Зал з назвою '{hall.Name}' вже існує." });
             }
 
             _context.Entry(hall).State = EntityState.Modified;
@@ -60,17 +97,20 @@ namespace CinemaInfrastructure.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!HallExists(id))
+                if (!await HallExistsAsync(id))
                 {
-                    return NotFound();
+                    return NotFound(new { Error = "Зал не знайдено (можливо, щойно видалено)." });
                 }
                 else
                 {
                     throw;
                 }
             }
-
-            return NoContent();
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, new { Error = "Помилка при оновленні залу.", Details = ex.Message });
+            }
+            return Ok(new { Status = "Ok" });
         }
 
         // POST: api/HallsAPI
@@ -78,10 +118,33 @@ namespace CinemaInfrastructure.Controllers
         [HttpPost]
         public async Task<ActionResult<Hall>> PostHall(Hall hall)
         {
-            _context.Halls.Add(hall);
-            await _context.SaveChangesAsync();
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            return CreatedAtAction("GetHall", new { id = hall.Id }, hall);
+            if (await HallNameExistsAsync(hall.Name))
+            {
+                return BadRequest(new { Error = $"Зал з назвою '{hall.Name}' вже існує." });
+            }
+
+            if (!await HallTypeExistsAsync(hall.HallTypeId))
+            {
+                return BadRequest(new { Error = "Вказаний тип залу не знайдено." });
+            }
+
+            _context.Halls.Add(hall);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, new { Error = "Помилка при збереженні залу.", Details = ex.Message });
+            }
+
+            return CreatedAtAction("GetHall", new { id = hall.Id }, new { Status = "Ok" });
         }
 
         // DELETE: api/HallsAPI/5
@@ -95,14 +158,16 @@ namespace CinemaInfrastructure.Controllers
             }
 
             _context.Halls.Remove(hall);
-            await _context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-        private bool HallExists(int id)
-        {
-            return _context.Halls.Any(e => e.Id == id);
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(new { Error = "Неможливо видалити зал, оскільки він має пов'язані місця чи сеанси.", Details = ex.Message });
+            }
+            return Ok(new { Status = "Ok" });
         }
     }
 }
