@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CinemaDomain.Model;
 using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -43,6 +44,7 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/FilmsAPI
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Film>>> GetFilms()
         {
             return await _context.Films
@@ -53,6 +55,7 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/FilmsAPI/5
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<Film>> GetFilm(int id)
         {
             var film = await _context.Films
@@ -71,6 +74,7 @@ namespace CinemaInfrastructure.Controllers
         // PUT: api/FilmsAPI/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> PutFilm(int id, Film film)
         {
             if (id != film.Id)
@@ -131,6 +135,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/FilmsAPI
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<Film>> PostFilm(Film film)
         {
             if (!ModelState.IsValid)
@@ -167,6 +172,7 @@ namespace CinemaInfrastructure.Controllers
 
         // DELETE: api/FilmsAPI/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> DeleteFilm(int id)
         {
             var film = await _context.Films.FindAsync(id);

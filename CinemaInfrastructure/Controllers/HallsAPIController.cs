@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CinemaDomain.Model;
 using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -96,6 +97,7 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/HallsAPI
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Hall>>> GetHalls()
         {
             return await _context.Halls.Include(h => h.HallType).ToListAsync();
@@ -103,6 +105,7 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/HallsAPI/5
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<Hall>> GetHall(int id)
         {
             var hall = await _context.Halls.Include(h => h.HallType).FirstOrDefaultAsync(h => h.Id == id);
@@ -118,6 +121,7 @@ namespace CinemaInfrastructure.Controllers
         // PUT: api/HallsAPI/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> PutHall(int id, Hall hall)
         {
             if (id != hall.Id)
@@ -187,6 +191,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/HallsAPI
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<Hall>> PostHall(Hall hall)
         {
             if (!ModelState.IsValid)
@@ -221,6 +226,7 @@ namespace CinemaInfrastructure.Controllers
 
         // DELETE: api/HallsAPI/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> DeleteHall(int id)
         {
             var hall = await _context.Halls.FindAsync(id);

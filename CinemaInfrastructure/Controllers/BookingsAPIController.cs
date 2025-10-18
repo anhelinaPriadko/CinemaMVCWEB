@@ -1,20 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using CinemaDomain.Model;
+using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CinemaDomain.Model;
-using CinemaInfrastructure;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace CinemaInfrastructure.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize]
     [ApiController]
     public class BookingsAPIController : ControllerBase
     {
         private readonly CinemaContext _context;
+
+        private string? GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier);
+        }
+
+        private async Task<int?> GetViewerIdByUserIdAsync(string userId)
+        {
+            var viewer = await _context.Viewers.FirstOrDefaultAsync(v => v.UserId == userId);
+            return viewer?.Id;
+        }
 
         private async Task<bool> BookingExistsAsync(int sessionId, int seatId)
         {
@@ -61,7 +76,7 @@ namespace CinemaInfrastructure.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Booking>>> GetBookings()
         {
-            return await _context.Bookings
+            var bookingsQuery = _context.Bookings
                 .Include(b => b.Seat)
                     .ThenInclude(s => s.Hall)
                         .ThenInclude(h => h.HallType)
@@ -71,8 +86,15 @@ namespace CinemaInfrastructure.Controllers
                 .Include(b => b.Session)
                     .ThenInclude(s => s.Film)
                         .ThenInclude(f => f.Company)
-                .Include(b => b.Viewer)
-                .ToListAsync();
+                .Include(b => b.Viewer);
+
+            if (User.IsInRole("user"))
+            {
+                var currentUserId = GetCurrentUserId();
+                bookingsQuery = (IIncludableQueryable<Booking, Viewer>)bookingsQuery.Where(b => b.Viewer.UserId == currentUserId);
+            }
+            var bookings = await bookingsQuery.ToListAsync();
+            return bookings;
         }
 
         // GET: api/BookingsAPI/1/10/2 (ViewerId, SessionId, SeatId)
@@ -100,6 +122,16 @@ namespace CinemaInfrastructure.Controllers
             if (booking == null)
             {
                 return NotFound();
+            }
+
+            if (!User.IsInRole("superadmin") && !User.IsInRole("admin"))
+            {
+                var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId());
+
+                if (viewerId != currentViewerId)
+                {
+                    return StatusCode(403, new { Error = "Недостатньо прав для перегляду цього бронювання." });
+                }
             }
 
             return booking;
@@ -138,6 +170,13 @@ namespace CinemaInfrastructure.Controllers
             if (await BookingExistsAsync(sessionId, booking.SeatId))
             {
                 return BadRequest(new { Error = "Обране місце вже заброньовано!" });
+            }
+
+            var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId());
+
+            if (viewerId != currentViewerId && !User.IsInRole("superadmin") && !User.IsInRole("admin"))
+            {
+                return StatusCode(403, new { Error = "Неможливо редагувати бронювання іншого користувача." });
             }
 
             _context.Bookings.Remove(oldBooking);
@@ -180,9 +219,16 @@ namespace CinemaInfrastructure.Controllers
                 return BadRequest(new { Error = "Обране місце вже заброньовано!" });
             }
 
+            var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId());
+
+            if (currentViewerId == null)
+            {
+                return Unauthorized(new { Error = "Профіль глядача не знайдено." });
+            }
+
             var newBooking = new Booking
             {
-                ViewerId = booking.ViewerId,
+                ViewerId = currentViewerId.Value,
                 SessionId = booking.SessionId,
                 SeatId = booking.SeatId
             };
@@ -209,6 +255,13 @@ namespace CinemaInfrastructure.Controllers
             if (booking == null)
             {
                 return NotFound();
+            }
+
+            var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId());
+
+            if (viewerId != currentViewerId && !User.IsInRole("superadmin") && !User.IsInRole("admin"))
+            {
+                return StatusCode(403, new { Error = "Неможливо видалити бронювання іншого користувача." });
             }
 
             _context.Bookings.Remove(booking);

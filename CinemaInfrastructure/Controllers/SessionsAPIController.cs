@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CinemaDomain.Model;
 using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -96,6 +97,7 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/Sessions1
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Session>>> GetSessions()
         {
             return await GetSessionsQuery()
@@ -106,6 +108,7 @@ namespace CinemaInfrastructure.Controllers
 
         //повернення майбутніх сеансів для певного залу
         [HttpGet("UpcomingByHall/{hallId}")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Session>>> GetUpcomingSessionsByHall(int hallId)
         {
             if (!await HallExistsAsync(hallId))
@@ -121,6 +124,7 @@ namespace CinemaInfrastructure.Controllers
 
         //повернення майбутніх сеансів за певним фільмом
         [HttpGet("UpcomingByFilm/{filmId}")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Session>>> GetUpcomingSessionsByFilm(int filmId)
         {
             if (!await FilmExistsAsync(filmId))
@@ -136,6 +140,7 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/Sessions1/5
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<Session>> GetSession(int id)
         {
             var session = await GetSessionsQuery().FirstOrDefaultAsync(s => s.Id == id);
@@ -151,6 +156,7 @@ namespace CinemaInfrastructure.Controllers
         // PUT: api/Sessions1/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> PutSession(int id, Session session)
         {
             if (id != session.Id)
@@ -219,6 +225,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/Sessions1
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize(Roles = "superadmin")]
         public async Task<ActionResult<Session>> PostSession(Session session)
         {
             if (!ModelState.IsValid)
@@ -257,6 +264,7 @@ namespace CinemaInfrastructure.Controllers
 
         // DELETE: api/Sessions1/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "superadmin")]
         public async Task<IActionResult> DeleteSession(int id)
         {
             var session = await _context.Sessions.FindAsync(id);
