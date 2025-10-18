@@ -92,7 +92,7 @@ namespace CinemaInfrastructure.Controllers
                 }
                 else
                 {
-                    throw; // Всі інші помилки паралелізму
+                    throw;
                 }
             }
             catch (DbUpdateException ex)
