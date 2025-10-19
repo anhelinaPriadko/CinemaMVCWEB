@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using CinemaInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using CinemaDomain.Model;
 using CinemaInfrastructure.ViewModel;
 using CinemaInfrastructure.Services;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +28,25 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
     options.Lockout.AllowedForNewUsers = false;
 })
 .AddEntityFrameworkStores<CinemaContext>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.Services.AddAuthentication() // Викликаємо базовий AddAuthentication без параметрів
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
+
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<IImportService<Film>, CategoryFilmCompanyImportService>();
 builder.Services.AddScoped<IExportService<Film>, FilmExportService>();
@@ -53,6 +75,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

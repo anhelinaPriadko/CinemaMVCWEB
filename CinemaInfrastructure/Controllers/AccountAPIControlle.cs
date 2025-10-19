@@ -8,21 +8,22 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-// Вам знадобляться DTO (Data Transfer Objects) для входу та відповіді
-// Створіть клас TokenResponseDTO, наприклад: public class TokenResponseDTO { public string Token { get; set; } }
 
 [Route("api/auth")]
 [ApiController]
 public class AuthAPIController : ControllerBase
 {
     private readonly UserManager<User> _userManager;
-    private readonly IConfiguration _configuration; // Потрібно для конфігурації JWT
+    private readonly IConfiguration _configuration;
 
     public AuthAPIController(UserManager<User> userManager, IConfiguration configuration)
     {
         _userManager = userManager;
         _configuration = configuration;
     }
+
+    // POST: api/auth/login
+    // ... (Ваші using'и та клас AuthAPIController)
 
     // POST: api/auth/login
     [HttpPost("login")]
@@ -39,9 +40,11 @@ public class AuthAPIController : ControllerBase
         // 2. Генерація токена
         var token = await GenerateJwtToken(user);
 
-        // 3. Повернення токена
-        return Ok(new { Token = token, Status = "Ok" });
+        // 3. ✅ Повернення типізованого DTO
+        return Ok(new TokenResponseDTO { Token = token, Status = "Ok" });
     }
+
+    // ... (решта методів)
 
     // --- ДОПОМІЖНИЙ МЕТОД ГЕНЕРАЦІЇ JWT ---
 
