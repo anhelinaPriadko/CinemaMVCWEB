@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CinemaDomain.Model;
 
@@ -23,7 +24,9 @@ public partial class Hall: Entity
 
     public virtual HallType HallType { get; set; }
 
+    [JsonIgnore]
     public virtual ICollection<Seat> Seats { get; set; } = new List<Seat>();
 
+    [JsonIgnore]
     public virtual ICollection<Session> Sessions { get; set; } = new List<Session>();
 }

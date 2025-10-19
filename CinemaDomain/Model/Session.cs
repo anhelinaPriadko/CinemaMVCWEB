@@ -1,7 +1,8 @@
-﻿using System;
+﻿using CinemaDomain.Validation;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using CinemaDomain.Validation;
+using System.Text.Json.Serialization;
 
 namespace CinemaDomain.Model;
 
@@ -21,6 +22,7 @@ public partial class Session: Entity
     [Range(90, 300, ErrorMessage = "Тривалість сеансу повинна бути від 90 до 300 хвилин!")]
     public int Duration { get; set; }
 
+    [JsonIgnore]
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
     public virtual Film Film { get; set; } = null!;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CinemaDomain.Model;
 
@@ -29,8 +30,10 @@ public partial class Film : Entity
 
     public virtual FilmCategory FilmCategory { get; set; } = null!;
 
+    [JsonIgnore]
     public virtual ICollection<FilmRating> FilmRatings { get; set; } = new List<FilmRating>();
 
+    [JsonIgnore]
     public virtual ICollection<Session> Sessions { get; set; } = new List<Session>();
 }
 

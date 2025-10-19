@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CinemaDomain.Model;
 
@@ -16,6 +17,7 @@ public partial class Seat: Entity
     [Range(1, int.MaxValue, ErrorMessage = "Номер місця не повинен бути меншим за 1!")]
     public int NumberInRow { get; set; }
 
+    [JsonIgnore]
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
     public virtual Hall Hall { get; set; } = null!;

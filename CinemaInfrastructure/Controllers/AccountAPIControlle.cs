@@ -1,0 +1,81 @@
+﻿using CinemaDomain.Model; 
+using CinemaInfrastructure.ViewModel;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+// Вам знадобляться DTO (Data Transfer Objects) для входу та відповіді
+// Створіть клас TokenResponseDTO, наприклад: public class TokenResponseDTO { public string Token { get; set; } }
+
+[Route("api/auth")]
+[ApiController]
+public class AuthAPIController : ControllerBase
+{
+    private readonly UserManager<User> _userManager;
+    private readonly IConfiguration _configuration; // Потрібно для конфігурації JWT
+
+    public AuthAPIController(UserManager<User> userManager, IConfiguration configuration)
+    {
+        _userManager = userManager;
+        _configuration = configuration;
+    }
+
+    // POST: api/auth/login
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Login([FromBody] LoginViewModel model)
+    {
+        // 1. Перевірка користувача та пароля
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
+        {
+            return Unauthorized(new { Error = "Неправильний логін чи (та) пароль." });
+        }
+
+        // 2. Генерація токена
+        var token = await GenerateJwtToken(user);
+
+        // 3. Повернення токена
+        return Ok(new { Token = token, Status = "Ok" });
+    }
+
+    // --- ДОПОМІЖНИЙ МЕТОД ГЕНЕРАЦІЇ JWT ---
+
+    private async Task<string> GenerateJwtToken(User user)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id), // Identity User ID
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        // Додаємо ролі користувача як Claims
+        var userRoles = await _userManager.GetRolesAsync(user);
+        foreach (var userRole in userRoles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, userRole));
+        }
+
+        // Ключ та конфігурація повинні бути визначені у Startup/Program.cs та appsettings.json
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddHours(2), // Токен дійсний 2 години
+            Issuer = _configuration["Jwt:Issuer"],
+            Audience = _configuration["Jwt:Audience"],
+            SigningCredentials = credentials
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var securityToken = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(securityToken);
+    }
+}

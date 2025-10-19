@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace CinemaDomain.Model;
 
@@ -13,7 +14,9 @@ public partial class Viewer: Entity
 
     public User User { get; set; } = null!;
 
+    [JsonIgnore]
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
+    [JsonIgnore]
     public virtual ICollection<FilmRating> FilmRatings { get; set; } = new List<FilmRating>();
 }

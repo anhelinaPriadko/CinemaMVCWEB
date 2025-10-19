@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CinemaDomain.Model;
 
@@ -10,5 +11,6 @@ public partial class HallType: Entity
     [StringLength(30, ErrorMessage = "Назва типу залу не може перевищувати 30 символів!")]
     public string Name { get; set; } = null!;
 
+    [JsonIgnore]
     public virtual ICollection<Hall> Halls { get; set; } = new List<Hall>();
 }
