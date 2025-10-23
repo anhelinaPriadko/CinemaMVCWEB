@@ -4,6 +4,7 @@ using CinemaInfrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CinemaInfrastructure.Migrations
 {
     [DbContext(typeof(CinemaContext))]
-    partial class CinemaContextModelSnapshot : ModelSnapshot
+    [Migration("20251021201106_ChangeFilmDescriptionLengthOnceAgain")]
+    partial class ChangeFilmDescriptionLengthOnceAgain
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,8 +75,8 @@ namespace CinemaInfrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<int>("FilmCategoryId")
                         .HasColumnType("int");
@@ -84,9 +87,9 @@ namespace CinemaInfrastructure.Migrations
                         .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("PosterPath")
-                        .HasMaxLength(255)
+                        .HasMaxLength(4000)
                         .IsUnicode(true)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<DateOnly>("ReleaseDate")
                         .HasColumnType("date");

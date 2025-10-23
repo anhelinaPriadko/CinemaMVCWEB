@@ -15,9 +15,9 @@ public partial class Booking
     [Required(ErrorMessage = "Поле не повинно бути порожнім!")]
     public int SeatId { get; set; }
 
-    public virtual Seat Seat { get; set; } = null!;
+    public virtual Seat? Seat { get; set; }
 
-    public virtual Session Session { get; set; } = null!;
+    public virtual Session? Session { get; set; }
 
-    public virtual Viewer Viewer { get; set; } = null!;
+    public virtual Viewer? Viewer { get; set; }
 }

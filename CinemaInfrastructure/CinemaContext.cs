@@ -50,7 +50,7 @@ namespace CinemaInfrastructure
 
             modelBuilder.Entity<Film>(entity =>
             {
-                entity.Property(e => e.Description).HasMaxLength(150);
+                entity.Property(e => e.Description).HasMaxLength(4000);
                 entity.Property(e => e.Name).HasMaxLength(40).IsRequired();
                 entity.Property(e => e.PosterPath).HasMaxLength(255).IsUnicode();
 

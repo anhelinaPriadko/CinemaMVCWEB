@@ -1,20 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
+﻿using CinemaDomain.Model;
+using CinemaInfrastructure;
+using CinemaInfrastructure.ViewModel;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CinemaDomain.Model;
-using CinemaInfrastructure;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace CinemaInfrastructure.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ViewersAPIController : ControllerBase
     {
         private readonly CinemaContext _context;
@@ -48,37 +50,70 @@ namespace CinemaInfrastructure.Controllers
 
         // GET: api/ViewersAPI
         [HttpGet]
-        [Authorize(Roles = "superadmin")]
-        public async Task<ActionResult<IEnumerable<Viewer>>> GetViewers()
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
+        public async Task<ActionResult<IEnumerable<ViewerReadDTO>>> GetViewers()
         {
-            return await _context.Viewers.Include(v => v.User).ToListAsync();
+            var viewersDto = await _context.Viewers
+            .Include(v => v.User)
+            .Select(v => new ViewerReadDTO
+            {
+                Id = v.Id,
+                Name = v.Name,
+                DateOfBirth = v.DateOfBirth,
+                UserId = v.UserId,
+                User = new UserReadDTO
+                {
+                    Id = v.User.Id,
+                    UserName = v.User.UserName,
+                    Email = v.User.Email,
+                }
+            })
+            .ToListAsync();
+
+            return viewersDto;
         }
 
         // GET: api/ViewersAPI/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Viewer>> GetViewer(int id)
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<ViewerReadDTO>> GetViewer(int id)
         {
-            var viewer = await _context.Viewers.Include(v => v.User).FirstOrDefaultAsync(v => v.Id == id);
+            var viewer = await _context.Viewers
+                .Include(v => v.User)
+                .FirstOrDefaultAsync(v => v.Id == id);
 
             if (viewer == null)
             {
                 return NotFound();
             }
 
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (viewer.UserId != currentUserId && !User.IsInRole("superadmin"))
             {
                 return StatusCode(403, new { Error = "Недостатньо прав доступу для перегляду профілю." });
             }
 
-            return viewer;
+            var viewerDto = new ViewerReadDTO
+            {
+                Id = viewer.Id,
+                Name = viewer.Name,
+                DateOfBirth = viewer.DateOfBirth,
+                UserId = viewer.UserId,
+                User = new UserReadDTO
+                {
+                    Id = viewer.User.Id,
+                    UserName = viewer.User.UserName,
+                    Email = viewer.User.Email
+                }
+            };
+
+            return viewerDto;
         }
 
         // PUT: api/ViewersAPI/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutViewer(int id, Viewer viewer)
         {
-            // 1. Перевірка ID та моделі
             if (id != viewer.Id)
             {
                 return BadRequest(new { Error = "ID у маршруті не відповідає ID у тілі запиту." });

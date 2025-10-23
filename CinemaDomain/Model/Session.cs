@@ -25,7 +25,7 @@ public partial class Session: Entity
     [JsonIgnore]
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
-    public virtual Film Film { get; set; } = null!;
+    public virtual Film? Film { get; set; }
 
-    public virtual Hall Hall { get; set; } = null!;
+    public virtual Hall? Hall { get; set; }
 }

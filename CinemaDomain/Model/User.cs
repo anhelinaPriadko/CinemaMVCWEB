@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace CinemaDomain.Model
@@ -11,6 +12,7 @@ namespace CinemaDomain.Model
     {
         public int Year { get; set; }
 
+        [JsonIgnore]
         public Viewer Viewer { get; set; }
     }
 }

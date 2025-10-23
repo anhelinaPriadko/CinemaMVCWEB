@@ -1,21 +1,22 @@
 ﻿using CinemaDomain.Model;
 using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore.Query;
+using System.Threading.Tasks;
 
 namespace CinemaInfrastructure.Controllers
 {
     [Route("api/[controller]")]
     [Authorize]
-    [ApiController]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class BookingsAPIController : ControllerBase
     {
         private readonly CinemaContext _context;
@@ -76,7 +77,7 @@ namespace CinemaInfrastructure.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Booking>>> GetBookings()
         {
-            var bookingsQuery = _context.Bookings
+            IQueryable<Booking> bookingsQuery = _context.Bookings
                 .Include(b => b.Seat)
                     .ThenInclude(s => s.Hall)
                         .ThenInclude(h => h.HallType)
@@ -91,7 +92,7 @@ namespace CinemaInfrastructure.Controllers
             if (User.IsInRole("user"))
             {
                 var currentUserId = GetCurrentUserId();
-                bookingsQuery = (IIncludableQueryable<Booking, Viewer>)bookingsQuery.Where(b => b.Viewer.UserId == currentUserId);
+                bookingsQuery = bookingsQuery.Where(b => b.Viewer.UserId == currentUserId);
             }
             var bookings = await bookingsQuery.ToListAsync();
             return bookings;
@@ -140,21 +141,24 @@ namespace CinemaInfrastructure.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         // PUT: api/BookingsApi/1/10/2 (ViewerId, SessionId, SeatId)
         [HttpPut("{viewerId}/{sessionId}/{seatId}")]
-        public async Task<IActionResult> PutBooking(int viewerId, int sessionId, int seatId, Booking booking)
+        public async Task<IActionResult> PutBooking(int viewerId, int sessionId, int seatId, [FromBody] Booking booking)
         {
             if (viewerId != booking.ViewerId || sessionId != booking.SessionId)
             {
                 return BadRequest(new { Error = "В бронюванні можливо змінити лише місце на обраний сеанс" });
             }
 
-            var oldBooking = await _context.Bookings.FindAsync(viewerId, sessionId, seatId);
+            var oldBooking = await _context.Bookings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.ViewerId == viewerId && b.SessionId == sessionId && b.SeatId == seatId);
+
             if (oldBooking == null)
             {
                 return NotFound(new { Error = "Бронювання не знайдено." });
             }
 
-            if (oldBooking.SeatId == booking.SeatId)
-            {           
+            if (seatId == booking.SeatId)
+            {
                 return Ok(new { Status = "Ok", Message = "Бронювання місця не вимагає оновлення." });
             }
 
@@ -192,7 +196,7 @@ namespace CinemaInfrastructure.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException ex)
+            catch (DbUpdateException ex)
             {
                 return StatusCode(500, new { Error = "Помилка при збереженні нового бронювання.", Details = ex.Message });
             }
@@ -202,7 +206,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/BookingsAPI
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Booking>> PostBooking(Booking booking)
+        public async Task<ActionResult<Booking>> PostBooking([FromBody] Booking booking)
         {
             if (!ModelState.IsValid)
             {
@@ -219,16 +223,36 @@ namespace CinemaInfrastructure.Controllers
                 return BadRequest(new { Error = "Обране місце вже заброньовано!" });
             }
 
-            var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId());
+            int finalViewerId;
 
-            if (currentViewerId == null)
+            if (User.IsInRole("superadmin"))
             {
-                return Unauthorized(new { Error = "Профіль глядача не знайдено." });
+                if (booking.ViewerId <= 0 || !await _context.Viewers.AnyAsync(v => v.Id == booking.ViewerId))
+                {
+                    return BadRequest(new { Error = "Некоректно вказано глядача для створення бронювання." });
+                }
+                finalViewerId = booking.ViewerId;
+            }
+            else
+            {
+                
+                var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId()!);
+
+                if (currentViewerId == null)
+                {
+                    return Unauthorized(new { Error = "Профіль глядача не знайдено." });
+                }
+                finalViewerId = currentViewerId.Value;
+
+                if (booking.ViewerId != 0 && booking.ViewerId != finalViewerId)
+                {
+                    return StatusCode(403, new { Error = "Не дозволено створювати бронювання від імені іншого глядача." });
+                }
             }
 
             var newBooking = new Booking
             {
-                ViewerId = currentViewerId.Value,
+                ViewerId = finalViewerId,
                 SessionId = booking.SessionId,
                 SeatId = booking.SeatId
             };
@@ -259,7 +283,7 @@ namespace CinemaInfrastructure.Controllers
 
             var currentViewerId = await GetViewerIdByUserIdAsync(GetCurrentUserId());
 
-            if (viewerId != currentViewerId && !User.IsInRole("superadmin") && !User.IsInRole("admin"))
+            if (viewerId != currentViewerId && !User.IsInRole("superadmin"))
             {
                 return StatusCode(403, new { Error = "Неможливо видалити бронювання іншого користувача." });
             }

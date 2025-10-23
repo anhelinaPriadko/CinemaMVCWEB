@@ -23,55 +23,43 @@ public class AuthAPIController : ControllerBase
     }
 
     // POST: api/auth/login
-    // ... (Ваші using'и та клас AuthAPIController)
-
-    // POST: api/auth/login
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginViewModel model)
     {
-        // 1. Перевірка користувача та пароля
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
         {
             return Unauthorized(new { Error = "Неправильний логін чи (та) пароль." });
         }
 
-        // 2. Генерація токена
         var token = await GenerateJwtToken(user);
 
-        // 3. ✅ Повернення типізованого DTO
         return Ok(new TokenResponseDTO { Token = token, Status = "Ok" });
     }
-
-    // ... (решта методів)
-
-    // --- ДОПОМІЖНИЙ МЕТОД ГЕНЕРАЦІЇ JWT ---
 
     private async Task<string> GenerateJwtToken(User user)
     {
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id), // Identity User ID
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        // Додаємо ролі користувача як Claims
         var userRoles = await _userManager.GetRolesAsync(user);
         foreach (var userRole in userRoles)
         {
             claims.Add(new Claim(ClaimTypes.Role, userRole));
         }
 
-        // Ключ та конфігурація повинні бути визначені у Startup/Program.cs та appsettings.json
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddHours(2), // Токен дійсний 2 години
+            Expires = DateTime.UtcNow.AddHours(2),
             Issuer = _configuration["Jwt:Issuer"],
             Audience = _configuration["Jwt:Audience"],
             SigningCredentials = credentials

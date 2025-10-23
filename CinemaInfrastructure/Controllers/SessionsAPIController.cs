@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using CinemaDomain.Model;
+using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CinemaDomain.Model;
-using CinemaInfrastructure;
-using Microsoft.AspNetCore.Authorization;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -156,7 +157,7 @@ namespace CinemaInfrastructure.Controllers
         // PUT: api/Sessions1/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<IActionResult> PutSession(int id, Session session)
         {
             if (id != session.Id)
@@ -225,7 +226,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/Sessions1
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<ActionResult<Session>> PostSession(Session session)
         {
             if (!ModelState.IsValid)
@@ -264,7 +265,7 @@ namespace CinemaInfrastructure.Controllers
 
         // DELETE: api/Sessions1/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<IActionResult> DeleteSession(int id)
         {
             var session = await _context.Sessions.FindAsync(id);

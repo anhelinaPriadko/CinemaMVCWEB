@@ -22,7 +22,7 @@ public partial class Hall: Entity
     [Required(ErrorMessage = "Поле не повинно бути порожнім!")]
     public int HallTypeId { get; set; }
 
-    public virtual HallType HallType { get; set; }
+    public virtual HallType? HallType { get; set; }
 
     [JsonIgnore]
     public virtual ICollection<Seat> Seats { get; set; } = new List<Seat>();

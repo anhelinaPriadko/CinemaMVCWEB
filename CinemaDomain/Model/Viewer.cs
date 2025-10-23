@@ -12,7 +12,7 @@ public partial class Viewer: Entity
 
     public string UserId { get; set; }
 
-    public User User { get; set; } = null!;
+    public User? User { get; set; }
 
     [JsonIgnore]
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();

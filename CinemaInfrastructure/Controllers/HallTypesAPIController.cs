@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using CinemaDomain.Model;
+using CinemaInfrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CinemaDomain.Model;
-using CinemaInfrastructure;
-using Microsoft.AspNetCore.Authorization;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -58,7 +59,7 @@ namespace CinemaInfrastructure.Controllers
         // PUT: api/HallTypesAPI/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<IActionResult> PutHallType(int id, HallType hallType)
         {
             if (id != hallType.Id)
@@ -111,7 +112,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/HallTypesAPI
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<ActionResult<HallType>> PostHallType(HallType hallType)
         {
             if (!ModelState.IsValid)
@@ -140,7 +141,7 @@ namespace CinemaInfrastructure.Controllers
 
         // DELETE: api/HallTypesAPI/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<IActionResult> DeleteHallType(int id)
         {
             var hallType = await _context.HallTypes.FindAsync(id);

@@ -28,11 +28,25 @@
                 <div class="movie-card card shadow-sm">
                     @if (!string.IsNullOrEmpty(item.PosterPath))
                     {
-                        <img src="@Url.Content(item.PosterPath)" class="movie-poster" alt="@item.Name" />
+                        // ✅ НОВА ЛОГІКА: Перевірка, чи це зовнішній URL (починається з http/https)
+                        string imagePath;
+
+                        // Перевіряємо, чи є шлях зовнішнім (наприклад, https://...)
+                        if (item.PosterPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                        {
+                            imagePath = item.PosterPath; // Використовуємо зовнішній URL напряму
+                        }
+                        else
+                        {
+                            // Якщо це відносний шлях (/uploads/... або /img/...), використовуємо Url.Content
+                            imagePath = Url.Content(item.PosterPath);
+                        }
+
+                        <img src="@imagePath" class="movie-poster" alt="@item.Name" />
                     }
                     else
                     {
-                        <div class="movie-noimage">Немає зображення</div>
+                        <img src="/img/empty_film_image.png" class="movie-poster"/>
                     }
 
                     <div class="movie-card-body">

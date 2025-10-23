@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using CinemaDomain.Model;
 using CinemaInfrastructure;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -58,7 +59,7 @@ namespace CinemaInfrastructure.Controllers
         // PUT: api/CompaniesAPI/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<IActionResult> PutCompany(int id, Company company)
         {
             if (id != company.Id)
@@ -109,7 +110,7 @@ namespace CinemaInfrastructure.Controllers
         // POST: api/CompaniesAPI
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<ActionResult<Company>> PostCompany(Company company)
         {
             if (!ModelState.IsValid)
@@ -137,7 +138,7 @@ namespace CinemaInfrastructure.Controllers
 
         // DELETE: api/CompaniesAPI/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "superadmin")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
         public async Task<IActionResult> DeleteCompany(int id)
         {
             var company = await _context.Companies.FindAsync(id);

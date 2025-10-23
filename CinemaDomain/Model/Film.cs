@@ -22,13 +22,14 @@ public partial class Film : Entity
     [MaxFutureDate(3)]
     public DateOnly ReleaseDate { get; set; }
 
+    [StringLength(4000, ErrorMessage = "Опис фільму не може перевищувати 4000 символів!")]
     public string? Description { get; set; }
     
     public string? PosterPath { get; set; }  
 
-    public virtual Company Company { get; set; } = null!;
+    public virtual Company? Company { get; set; }
 
-    public virtual FilmCategory FilmCategory { get; set; } = null!;
+    public virtual FilmCategory? FilmCategory { get; set; }
 
     [JsonIgnore]
     public virtual ICollection<FilmRating> FilmRatings { get; set; } = new List<FilmRating>();
