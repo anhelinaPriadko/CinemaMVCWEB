@@ -55,10 +55,19 @@ namespace CinemaInfrastructure.Controllers
                 return BadRequest(new { Error = "Сеанс з таким ID не знайдено." });
             }
 
-            TimeSpan delayTolerance = TimeSpan.FromMinutes(15);
-            if (session.SessionTime.Add(delayTolerance) < DateTime.Now)
+            var currentTime = DateTime.Now;
+            var sessionStartTime = session.SessionTime;
+
+            TimeSpan maxDelay = TimeSpan.FromMinutes(20);
+            DateTime allowedEndTime = sessionStartTime.Add(maxDelay);
+            if (currentTime > allowedEndTime)
             {
-                return BadRequest(new { Error = "Сеанс вже почався і час для бронювання вичерпано." });
+                DateTime sessionFinishTime = sessionStartTime.AddMinutes(session.Duration);
+                if (currentTime > sessionFinishTime)
+                {
+                    return BadRequest(new { Error = "Сеанс закінчився." });
+                }
+                return BadRequest(new { Error = "Час для бронювання вичерпано (дозволено лише перші 20 хвилин сеансу)." });
             }
 
             var seatExists = await _context.Seats.AnyAsync(s =>
