@@ -136,7 +136,7 @@ namespace CinemaInfrastructure.Controllers
                 return StatusCode(500, new { Error = "Помилка при збереженні типу залу.", Details = ex.Message });
             }
 
-            return CreatedAtAction("GetHallType", new { id = hallType.Id }, new { Status = "Ok" });
+            return CreatedAtAction("GetHallType", new { id = hallType.Id }, new { Status = "Ok", id = hallType.Id });
         }
 
         // DELETE: api/HallTypesAPI/5

@@ -133,7 +133,7 @@ namespace CinemaInfrastructure.Controllers
             {
                 return StatusCode(500, new { Error = "Помилка при збереженні виробника.", Details = ex.Message });
             }
-            return CreatedAtAction("GetCompany", new { id = company.Id }, new { Status = "Ok" });
+            return CreatedAtAction("GetCompany", new { id = company.Id }, new { Status = "Ok", id = company.Id });
         }
 
         // DELETE: api/CompaniesAPI/5

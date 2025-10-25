@@ -173,7 +173,7 @@ namespace CinemaInfrastructure.Controllers
             {
                 return StatusCode(500, new { Error = "Помилка при збереженні фільму.", Details = ex.Message });
             }
-            return CreatedAtAction("GetFilm", new { id = film.Id }, new { Status = "Ok" });
+            return CreatedAtAction("GetFilm", new { id = film.Id }, new { Status = "Ok", id = film.Id });
         }
 
         // DELETE: api/FilmsAPI/5

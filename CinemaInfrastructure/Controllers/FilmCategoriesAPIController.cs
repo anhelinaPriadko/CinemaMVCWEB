@@ -134,7 +134,7 @@ namespace CinemaInfrastructure.Controllers
             {
                 return StatusCode(500, new { Error = "Помилка при збереженні категорії.", Details = ex.Message });
             }
-            return CreatedAtAction("GetFilmCategory", new { id = filmCategory.Id }, new { Status = "Ok" });
+            return CreatedAtAction("GetFilmCategory", new { id = filmCategory.Id }, new { Status = "Ok", id = filmCategory.Id });
         }
 
         // DELETE: api/FilmCategoriesAPI/5

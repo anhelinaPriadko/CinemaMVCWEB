@@ -222,7 +222,7 @@ namespace CinemaInfrastructure.Controllers
                 return StatusCode(500, new { Error = "Помилка при збереженні залу.", Details = ex.Message });
             }
 
-            return CreatedAtAction("GetHall", new { id = hall.Id }, new { Status = "Ok" });
+            return CreatedAtAction("GetHall", new { id = hall.Id }, new { Status = "Ok", id = hall.Id });
         }
 
         // DELETE: api/HallsAPI/5

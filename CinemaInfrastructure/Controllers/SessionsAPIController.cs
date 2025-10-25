@@ -260,7 +260,7 @@ namespace CinemaInfrastructure.Controllers
                 return StatusCode(500, new { Error = "Помилка при збереженні сеансу.", Details = ex.Message });
             }
 
-            return CreatedAtAction("GetSession", new { id = session.Id }, new { Status = "Ok" });
+            return CreatedAtAction("GetSession", new { id = session.Id }, new { Status = "Ok", id = session.Id });
         }
 
         // DELETE: api/Sessions1/5

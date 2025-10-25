@@ -277,7 +277,7 @@ namespace CinemaInfrastructure.Controllers
             }
             return CreatedAtAction("GetBooking",
                 new { viewerId = booking.ViewerId, sessionId = booking.SessionId, seatId = booking.SeatId },
-                new { Status = "Ok" });
+                new { Status = "Ok", viewerId = booking.ViewerId, sessionId = booking.SessionId, seatId = booking.SeatId });
         }
 
         // DELETE: api/BookingsAPI/1/10/2 (ViewerId, SessionId, SeatId)
