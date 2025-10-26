@@ -276,8 +276,8 @@ namespace CinemaInfrastructure.Controllers
                 return StatusCode(500, new { Error = "Помилка при збереженні нового бронювання.", Details = ex.Message });
             }
             return CreatedAtAction("GetBooking",
-                new { viewerId = booking.ViewerId, sessionId = booking.SessionId, seatId = booking.SeatId },
-                new { Status = "Ok", viewerId = booking.ViewerId, sessionId = booking.SessionId, seatId = booking.SeatId });
+                new { viewerId = newBooking.ViewerId, sessionId = newBooking.SessionId, seatId = newBooking.SeatId },
+                new { Status = "Ok", viewerId = newBooking.ViewerId, sessionId = newBooking.SessionId, seatId = newBooking.SeatId });
         }
 
         // DELETE: api/BookingsAPI/1/10/2 (ViewerId, SessionId, SeatId)
