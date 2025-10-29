@@ -1,5 +1,6 @@
 ﻿using CinemaDomain.Model;
 using CinemaInfrastructure;
+using CinemaInfrastructure.Pagination;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -97,14 +98,40 @@ namespace CinemaInfrastructure.Controllers
         }
 
         // GET: api/Sessions1
-        [HttpGet]
+        [HttpGet(Name = "GetSessions")]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<Session>>> GetSessions()
+        public async Task<ActionResult<PagedResponse<Session>>> GetSessions([FromQuery] PaginationParameters parameters)
         {
-            return await GetSessionsQuery()
+            IQueryable<Session> sessionsQuery = GetSessionsQuery()
                 .Where(s => s.SessionTime > DateTime.Now)
                 .OrderBy(s => s.SessionTime)
+                .ThenBy(s => s.Film.Name)
+                .AsQueryable();
+
+            var totalCount = await sessionsQuery.CountAsync();
+
+            var sessions = await sessionsQuery
+                .Skip(parameters.Skip)
+                .Take(parameters.Limit)
                 .ToListAsync();
+            const string routeName = "GetSessions";
+
+            var nextLink = PaginationLinkHelper.CreateNextLink(
+                Url,
+                routeName,
+                parameters,
+                totalCount);
+
+            var prevLink = PaginationLinkHelper.CreatePreviousLink(
+                Url,
+                routeName,
+                parameters);
+
+            return Ok(new PagedResponse<Session>(
+                sessions,
+                totalCount,
+                nextLink,
+                prevLink));
         }
 
         //повернення майбутніх сеансів для певного залу

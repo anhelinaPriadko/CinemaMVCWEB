@@ -1,5 +1,6 @@
 ﻿using CinemaDomain.Model;
 using CinemaInfrastructure;
+using CinemaInfrastructure.Pagination;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -34,11 +35,37 @@ namespace CinemaInfrastructure.Controllers
         }
 
         // GET: api/FilmCategoriesAPI
-        [HttpGet]
+        [HttpGet(Name = "GetFilmCategories")]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<FilmCategory>>> GetFilmCategories()
+        public async Task<ActionResult<PagedResponse<FilmCategory>>> GetFilmCategories([FromQuery] PaginationParameters parameters)
         {
-            return await _context.FilmCategories.ToListAsync();
+            IQueryable<FilmCategory> categoriesQuery = _context.FilmCategories.AsQueryable();
+            categoriesQuery = categoriesQuery.OrderBy(fc => fc.Name).ThenBy(fc => fc.Id);
+
+            var totalCount = await categoriesQuery.CountAsync();
+
+            var categories = await categoriesQuery
+                .Skip(parameters.Skip)
+                .Take(parameters.Limit)
+                .ToListAsync();
+
+            const string routeName = "GetFilmCategories";
+            var nextLink = PaginationLinkHelper.CreateNextLink(
+                Url,
+                routeName,
+                parameters,
+                totalCount);
+
+            var prevLink = PaginationLinkHelper.CreatePreviousLink(
+                Url,
+                routeName,
+                parameters);
+
+            return Ok(new PagedResponse<FilmCategory>(
+                categories,
+                totalCount,
+                nextLink,
+                prevLink));
         }
 
         // GET: api/FilmCategoriesAPI/5

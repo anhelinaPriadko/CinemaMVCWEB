@@ -1,5 +1,6 @@
 ﻿using CinemaDomain.Model;
 using CinemaInfrastructure;
+using CinemaInfrastructure.Pagination;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -97,11 +98,40 @@ namespace CinemaInfrastructure.Controllers
         }
 
         // GET: api/HallsAPI
-        [HttpGet]
+        [HttpGet(Name = "GetHalls")]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<Hall>>> GetHalls()
+        public async Task<ActionResult<PagedResponse<Hall>>> GetHalls([FromQuery] PaginationParameters parameters)
         {
-            return await _context.Halls.Include(h => h.HallType).ToListAsync();
+            IQueryable<Hall> hallsQuery = _context.Halls
+                .Include(h => h.HallType)
+                .AsQueryable();
+
+            hallsQuery = hallsQuery.OrderBy(h => h.Name).ThenBy(h => h.Id);
+
+            var totalCount = await hallsQuery.CountAsync();
+
+            var halls = await hallsQuery
+                .Skip(parameters.Skip)
+                .Take(parameters.Limit)
+                .ToListAsync();
+            const string routeName = "GetHalls";
+
+            var nextLink = PaginationLinkHelper.CreateNextLink(
+                Url,
+                routeName,
+                parameters,
+                totalCount);
+
+            var prevLink = PaginationLinkHelper.CreatePreviousLink(
+                Url,
+                routeName,
+                parameters);
+
+            return Ok(new PagedResponse<Hall>(
+                halls,
+                totalCount,
+                nextLink,
+                prevLink));
         }
 
         // GET: api/HallsAPI/5

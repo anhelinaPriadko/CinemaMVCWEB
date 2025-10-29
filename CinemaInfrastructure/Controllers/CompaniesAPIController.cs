@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using CinemaDomain.Model;
+using CinemaInfrastructure;
+using CinemaInfrastructure.Pagination;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using CinemaDomain.Model;
-using CinemaInfrastructure;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -34,11 +35,39 @@ namespace CinemaInfrastructure.Controllers
         }
 
         // GET: api/CompaniesAPI
-        [HttpGet]
+
+        [HttpGet(Name = "GetCompanies")]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<Company>>> GetCompanies()
+        public async Task<ActionResult<PagedResponse<Company>>> GetCompanies([FromQuery] PaginationParameters parameters)
         {
-            return await _context.Companies.ToListAsync();
+            IQueryable<Company> companiesQuery = _context.Companies.AsQueryable();
+            companiesQuery = companiesQuery.OrderBy(c => c.Name).ThenBy(c => c.Id);
+
+            var totalCount = await companiesQuery.CountAsync();
+
+            var companies = await companiesQuery
+                .Skip(parameters.Skip)
+                .Take(parameters.Limit)
+                .ToListAsync();
+
+            const string routeName = "GetCompanies";
+
+            var nextLink = PaginationLinkHelper.CreateNextLink(
+                Url,
+                routeName,
+                parameters,
+                totalCount);
+
+            var prevLink = PaginationLinkHelper.CreatePreviousLink(
+                Url,
+                routeName,
+                parameters);
+
+            return Ok(new PagedResponse<Company>(
+                companies,
+                totalCount,
+                nextLink,
+                prevLink));
         }
 
         // GET: api/CompaniesAPI/5

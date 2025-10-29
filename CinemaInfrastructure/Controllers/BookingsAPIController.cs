@@ -1,5 +1,6 @@
 ﻿using CinemaDomain.Model;
 using CinemaInfrastructure;
+using CinemaInfrastructure.Pagination;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -83,8 +84,8 @@ namespace CinemaInfrastructure.Controllers
 
 
         // GET: api/BookingsAPI
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Booking>>> GetBookings()
+        [HttpGet(Name = "GetBookings")]
+        public async Task<ActionResult<PagedResponse<Booking>>> GetBookings([FromQuery] PaginationParameters parameters)
         {
             IQueryable<Booking> bookingsQuery = _context.Bookings
                 .Include(b => b.Seat)
@@ -103,8 +104,33 @@ namespace CinemaInfrastructure.Controllers
                 var currentUserId = GetCurrentUserId();
                 bookingsQuery = bookingsQuery.Where(b => b.Viewer.UserId == currentUserId);
             }
-            var bookings = await bookingsQuery.ToListAsync();
-            return bookings;
+            bookingsQuery = bookingsQuery.OrderByDescending(b => b.Session.SessionTime)
+                                         .ThenBy(b => b.SessionId)
+                                         .ThenBy(b => b.ViewerId)
+                                         .ThenBy(b => b.SeatId);
+
+            var totalCount = await bookingsQuery.CountAsync();
+            var bookings = await bookingsQuery
+                .Skip(parameters.Skip)
+                .Take(parameters.Limit)
+                .ToListAsync();
+            const string routeName = "GetBookings";
+            var nextLink = PaginationLinkHelper.CreateNextLink(
+                Url,
+                routeName,
+                parameters,
+                totalCount);
+
+            var prevLink = PaginationLinkHelper.CreatePreviousLink(
+                Url,
+                routeName,
+                parameters);
+
+            return Ok(new PagedResponse<Booking>(
+                bookings,
+                totalCount,
+                nextLink,
+                prevLink));
         }
 
         // GET: api/BookingsAPI/1/10/2 (ViewerId, SessionId, SeatId)
@@ -277,7 +303,8 @@ namespace CinemaInfrastructure.Controllers
             }
             return CreatedAtAction("GetBooking",
                 new { viewerId = newBooking.ViewerId, sessionId = newBooking.SessionId, seatId = newBooking.SeatId },
-                new { Status = "Ok", viewerId = newBooking.ViewerId, sessionId = newBooking.SessionId, seatId = newBooking.SeatId });
+                new { Status = "Ok", viewerId = newBooking.ViewerId, sessionId = newBooking.SessionId, seatId = newBooking.SeatId 
+            });
         }
 
         // DELETE: api/BookingsAPI/1/10/2 (ViewerId, SessionId, SeatId)

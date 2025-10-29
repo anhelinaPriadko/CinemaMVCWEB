@@ -1,5 +1,6 @@
 ﻿using CinemaDomain.Model;
 using CinemaInfrastructure;
+using CinemaInfrastructure.Pagination;
 using CinemaInfrastructure.ViewModel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -49,28 +50,53 @@ namespace CinemaInfrastructure.Controllers
         }
 
         // GET: api/ViewersAPI
-        [HttpGet]
+        [HttpGet(Name = "GetViewers")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "superadmin")]
-        public async Task<ActionResult<IEnumerable<ViewerReadDTO>>> GetViewers()
+        public async Task<ActionResult<PagedResponse<ViewerReadDTO>>> GetViewers([FromQuery] PaginationParameters parameters)
         {
-            var viewersDto = await _context.Viewers
-            .Include(v => v.User)
-            .Select(v => new ViewerReadDTO
-            {
-                Id = v.Id,
-                Name = v.Name,
-                DateOfBirth = v.DateOfBirth,
-                UserId = v.UserId,
-                User = new UserReadDTO
-                {
-                    Id = v.User.Id,
-                    UserName = v.User.UserName,
-                    Email = v.User.Email,
-                }
-            })
-            .ToListAsync();
+            IQueryable<Viewer> viewersQuery = _context.Viewers
+                .Include(v => v.User)
+                .AsQueryable();
+            viewersQuery = viewersQuery.OrderBy(v => v.Id);
+            var totalCount = await viewersQuery.CountAsync();
 
-            return viewersDto;
+            var paginatedViewersQuery = viewersQuery
+                .Skip(parameters.Skip)
+                .Take(parameters.Limit);
+
+            var viewersDto = await paginatedViewersQuery
+                .Select(v => new ViewerReadDTO
+                {
+                    Id = v.Id,
+                    Name = v.Name,
+                    DateOfBirth = v.DateOfBirth,
+                    UserId = v.UserId,
+                    User = new UserReadDTO
+                    {
+                        Id = v.User.Id,
+                        UserName = v.User.UserName,
+                        Email = v.User.Email,
+                    }
+                })
+                .ToListAsync();
+            const string routeName = "GetViewers";
+
+            var nextLink = PaginationLinkHelper.CreateNextLink(
+                Url,
+                routeName,
+                parameters,
+                totalCount);
+
+            var prevLink = PaginationLinkHelper.CreatePreviousLink(
+                Url,
+                routeName,
+                parameters);
+
+            return Ok(new PagedResponse<ViewerReadDTO>(
+                viewersDto,
+                totalCount,
+                nextLink,
+                prevLink));
         }
 
         // GET: api/ViewersAPI/5
