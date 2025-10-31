@@ -23,7 +23,6 @@
 
                 <div class="collapse navbar-collapse" id="mainNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        @* Пункти меню (залишив логіку, що була) *@
                         @if (User.IsInRole("superadmin"))
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Головна</a></li>
@@ -33,6 +32,7 @@
                             <li class="nav-item"><a class="nav-link" asp-controller="Halls" asp-action="Index">Зали</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Seats" asp-action="Index">Місця</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Viewers" asp-action="Index">Глядачі</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Statistics" asp-action="Index">Статистика</a></li>
                         }
 
                         <li class="nav-item"><a class="nav-link" asp-controller="Films" asp-action="Index">Фільми</a></li>

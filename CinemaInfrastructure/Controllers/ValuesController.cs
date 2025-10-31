@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,13 +14,13 @@ namespace CinemaInfrastructure.Controllers
 
         private readonly CinemaContext cinemaContext;
 
-
         public ValuesController(CinemaContext cinemaContext)
         {
             this.cinemaContext = cinemaContext;
         }
 
         [HttpGet("countByType")]
+        [Authorize(Roles = "superadmin")]
         public async Task<JsonResult> GetCountByFilmCategoryAsync(CancellationToken cancellationToken)
         {
             var responseItems = await cinemaContext
@@ -34,6 +35,7 @@ namespace CinemaInfrastructure.Controllers
         }
 
         [HttpGet("countByHalls")]
+        [Authorize(Roles = "superadmin")]
         public async Task<JsonResult> GetCountByHallsAsync(CancellationToken cancellationToken)
         {
             var responseItems = await cinemaContext

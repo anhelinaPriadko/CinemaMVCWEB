@@ -1,0 +1,124 @@
+﻿@{
+    ViewData["Title"] = "Статистика та звіти";
+}
+
+<div class="text-center">
+    <h1>Статистика DreamScreen</h1>
+</div>
+
+
+<div class="row">
+    <div class="col-lg-6 col-md-12">
+        <div id="countByType" style="width: 100%; height: 400px;"></div>
+    </div>
+    <div class="col-lg-6 col-md-12">
+        <div id="countByHalls" style="width: 100%; height: 400px;"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawCharts);
+
+        function displayError(containerId, message) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="alert alert-warning m-3">${message}</div>`;
+            container.style.height = '100px';
+        }
+
+        function drawCharts() {
+            fetch('/api/values/countByType', {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                         throw new Error('У вас немає прав доступу до цієї статистики. Будь ласка, увійдіть як superadmin.');
+                    }
+                    throw new Error(`Помилка завантаження даних! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const dataTable = new google.visualization.DataTable();
+                dataTable.addColumn('string', 'Жанр');
+                dataTable.addColumn('number', 'Кількість фільмів');
+
+                data.forEach(item => {
+                    dataTable.addRow([item.cinemaType, item.count]);
+                });
+
+                const options = {
+                    title: 'Фільми за жанрами',
+                    titleTextStyle: {
+                        color: '#0be7fb',
+                        fontSize: 18
+                    },
+                    hAxis: { textStyle: { color: '#0be7fb' } },
+                    vAxis: { textStyle: { color: '#0be7fb' } },
+                    legend: { position: 'none' },
+                    width: '100%',
+                    height: 400,
+                    backgroundColor: 'transparent',
+                    colors: ['#0be7fb']
+                };
+
+                const chart = new google.visualization.ColumnChart(document.getElementById('countByType'));
+                chart.draw(dataTable, options);
+            })
+            .catch(error => {
+                console.error('Error loading chart data (countByType):', error);
+                displayError('countByType', error.message);
+            });
+
+
+            fetch('/api/values/countByHalls', {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                         throw new Error('У вас немає прав доступу до цієї статистики. Будь ласка, увійдіть як superadmin.');
+                    }
+                    throw new Error(`Помилка завантаження даних! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const dataTable = new google.visualization.DataTable();
+                dataTable.addColumn('string', 'Зал');
+                dataTable.addColumn('number', 'Кількість сеансів');
+
+                data.forEach(item => {
+                    dataTable.addRow([item.cinemaType, item.count]);
+                });
+
+                const options = {
+                    title: 'Сеанси за залами',
+                    titleTextStyle: {
+                        color: '#0be7fb',
+                        fontSize: 18
+                    },
+                    hAxis: { textStyle: { color: '#0be7fb' } },
+                    vAxis: { textStyle: { color: '#0be7fb' } },
+                    legend: { position: 'none' },
+                    width: '100%',
+                    height: 400,
+                    backgroundColor: 'transparent',
+                    colors: ['#0be7fb']
+                };
+
+                const chart = new google.visualization.ColumnChart(document.getElementById('countByHalls'));
+                chart.draw(dataTable, options);
+            })
+            .catch(error => {
+                console.error('Error loading chart data (countByHalls):', error);
+                displayError('countByHalls', error.message);
+            });
+        }
+    </script>
+}
