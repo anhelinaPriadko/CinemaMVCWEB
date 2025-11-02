@@ -1,13 +1,17 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using CinemaInfrastructure;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
+using Azure;
+using Azure.Search.Documents;
+using Azure.Search.Documents.Indexes;
 using CinemaDomain.Model;
-using CinemaInfrastructure.ViewModel;
+using CinemaInfrastructure;
 using CinemaInfrastructure.Services;
+using CinemaInfrastructure.ViewModel;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,8 +32,9 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
     options.Lockout.AllowedForNewUsers = false;
 })
 .AddEntityFrameworkStores<CinemaContext>()
-.AddDefaultTokenProviders()
-.Services.AddAuthentication() // Викликаємо базовий AddAuthentication без параметрів
+.AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication()
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -45,8 +50,26 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
         };
     });
 
-
 builder.Services.AddAuthorization();
+
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var serviceUrl = config["AzureSearch:ServiceUrl"];
+    var apiKey = config["AzureSearch:ApiKey"];
+    return new SearchIndexClient(new Uri(serviceUrl!), new AzureKeyCredential(apiKey!));
+});
+
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var serviceUrl = config["AzureSearch:ServiceUrl"];
+    var apiKey = config["AzureSearch:ApiKey"];
+    var indexName = config["AzureSearch:IndexName"];
+    return new SearchClient(new Uri(serviceUrl!), indexName!, new AzureKeyCredential(apiKey!));
+});
+
+builder.Services.AddScoped<AzureSearchService>();
 
 builder.Services.AddScoped<IImportService<Film>, CategoryFilmCompanyImportService>();
 builder.Services.AddScoped<IExportService<Film>, FilmExportService>();
@@ -62,8 +85,22 @@ using (var scope = app.Services.CreateScope())
 
     var userManager = services.GetRequiredService<UserManager<User>>();
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-
     await RoleInitializer.InitializeAsync(userManager, roleManager);
+
+    try
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+
+        var azureSearchService = services.GetRequiredService<AzureSearchService>();
+        await azureSearchService.InitializeAndIndexAsync();
+
+        logger.LogInformation("Azure Search initialized and documents indexed (if any).");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Помилка під час ініціалізації Azure Search");
+    }
 }
 
 if (!app.Environment.IsDevelopment())

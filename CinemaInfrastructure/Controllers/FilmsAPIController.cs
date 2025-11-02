@@ -1,6 +1,10 @@
-﻿using CinemaDomain.Model;
+﻿using Azure;
+using Azure.Search.Documents;
+using Azure.Search.Documents.Models;
+using CinemaDomain.Model;
 using CinemaInfrastructure;
 using CinemaInfrastructure.Pagination;
+using CinemaInfrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -18,10 +22,19 @@ namespace CinemaInfrastructure.Controllers
     public class FilmsAPIController : ControllerBase
     {
         private readonly CinemaContext _context;
+        private readonly SearchClient _searchClient;
+        private readonly ILogger<FilmsAPIController> _logger;
 
-        public FilmsAPIController(CinemaContext context)
+        public FilmsAPIController(CinemaContext context, IConfiguration configuration, ILogger<FilmsAPIController> logger)
         {
             _context = context;
+            _logger = logger;
+
+            string serviceUrl = configuration["AzureSearch:ServiceUrl"]!;
+            string indexName = configuration["AzureSearch:IndexName"]!;
+            string apiKey = configuration["AzureSearch:ApiKey"]!;
+
+            _searchClient = new SearchClient(new Uri(serviceUrl), indexName, new AzureKeyCredential(apiKey));
         }
 
         private async Task<bool> FilmExistsAsync(int id)
@@ -42,6 +55,43 @@ namespace CinemaInfrastructure.Controllers
         private async Task<bool> FilmCategoryExistsAsync(int id)
         {
             return await _context.FilmCategories.AnyAsync(e => e.Id == id);
+        }
+
+        //GET for elasticsearch search
+        [HttpGet("search")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<Film>>> SearchFilms([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest(new { Error = "Будь ласка, введіть пошуковий запит." });
+            }
+
+            var searchOptions = new SearchOptions
+            {
+                SearchFields = { "Name", "Description", "FilmCategoryName" },
+                QueryType = SearchQueryType.Simple,
+                Size = 20
+            };
+
+            SearchResults<FilmSearchDTO> results = await _searchClient.SearchAsync<FilmSearchDTO>(query, searchOptions);
+
+            if (results.TotalCount == 0)
+            {
+                return NotFound(new { Message = $"Не знайдено фільмів за запитом: '{query}'." });
+            }
+
+            // 2. Завантаження повних об'єктів з SQL (Hydration)
+            // Azure Search повертає лише ID та поля, які ми визначили. 
+            var filmIds = results.GetResults().Select(r => int.Parse(r.Document.Id)).ToList();
+
+            var filmsFromDb = await _context.Films
+                .Include(f => f.Company)
+                .Include(f => f.FilmCategory)
+                .Where(f => filmIds.Contains(f.Id))
+                .ToListAsync();
+
+            return filmsFromDb;
         }
 
         // GET: api/FilmsAPI
@@ -141,6 +191,28 @@ namespace CinemaInfrastructure.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                string categoryName = film.FilmCategory?.Name
+                    ?? (await _context.FilmCategories.FindAsync(film.FilmCategoryId))?.Name
+                    ?? string.Empty;
+
+                var updateAction = IndexDocumentsAction.MergeOrUpload(new FilmSearchDTO
+                {
+                    Id = film.Id.ToString(),
+                    Name = film.Name,
+                    Description = film.Description ?? "",
+                    FilmCategoryName = categoryName
+                });
+
+                var batch = IndexDocumentsBatch.Create(updateAction);
+
+                try
+                {
+                    await _searchClient.IndexDocumentsAsync(batch);
+                }
+                catch (RequestFailedException ex)
+                {
+                    _logger.LogError(ex, "Azure Search indexing error (update).");
+                }
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -196,6 +268,31 @@ namespace CinemaInfrastructure.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                // Отримуємо назву категорії без небезпечного !:
+                string categoryName = film.FilmCategory?.Name
+                    ?? (await _context.FilmCategories.FindAsync(film.FilmCategoryId))?.Name
+                    ?? string.Empty;
+
+                var uploadDto = new FilmSearchDTO
+                {
+                    Id = film.Id.ToString(),
+                    Name = film.Name,
+                    Description = film.Description ?? "",
+                    FilmCategoryName = categoryName
+                };
+
+                var batch = IndexDocumentsBatch.Create(
+                    IndexDocumentsAction.Upload(uploadDto)
+                );
+
+                try
+                {
+                    await _searchClient.IndexDocumentsAsync(batch);
+                }
+                catch (RequestFailedException ex)
+                {
+                    _logger.LogError(ex, "Azure Search indexing error (upload).");
+                }
             }
             catch (DbUpdateException ex)
             {
@@ -220,6 +317,16 @@ namespace CinemaInfrastructure.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                try
+                {
+                    var deleteAction = IndexDocumentsAction.Delete(new SearchDocument { ["Id"] = id.ToString() });
+                    var batch = IndexDocumentsBatch.Create(deleteAction);
+                    await _searchClient.IndexDocumentsAsync(batch);
+                }
+                catch (RequestFailedException ex)
+                {
+                     _logger.LogError(ex, "Azure Search indexing error (delete).");
+                }
             }
             catch (DbUpdateException ex)
             {
