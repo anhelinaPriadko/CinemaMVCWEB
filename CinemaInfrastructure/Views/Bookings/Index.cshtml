@@ -1,10 +1,34 @@
-﻿@model IEnumerable<CinemaDomain.Model.Booking>
+﻿@* Views/Bookings/Index.cshtml - ФІНАЛЬНИЙ ВИПРАВЛЕНИЙ КОД *@
+
+@model IEnumerable<CinemaInfrastructure.Models.BookingIndexViewModel>
 
 @{
     ViewData["Title"] = "Index";
 }
 
 <h1>Бронювання</h1>
+
+@if (User.IsInRole("superadmin") || User.IsInRole("admin"))
+{
+    <hr />
+    <div style="margin-bottom: 20px; border: 1px solid #ccc; padding: 15px;">
+        <h2>Керування Real-Time Моніторингом</h2>
+        <button onclick="startSignalR()" style="background-color: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer;">
+            1. Запустити SignalR (Web Sockets)
+        </button>
+        <button onclick="startAdaptivePolling()" style="background-color: #008CBA; color: white; padding: 10px; border: none; cursor: pointer;">
+            2. Запустити Adaptive Polling
+        </button>
+        <button onclick="window.location.reload();" style="background-color: #f44336; color: white; padding: 10px; border: none; cursor: pointer;">
+            Зупинити та Перезавантажити
+        </button>
+
+        <h4 style="margin-top: 15px;">Лог Real-Time Оновлень:</h4>
+        <ul id="updatesLog" style="list-style-type: none; padding: 0;">
+        </ul>
+    </div>
+    <hr />
+}
 
 <p>
     <a class="btn btn-primary" asp-action="Create">Створити нове</a>
@@ -26,28 +50,22 @@
     <tbody>
         @foreach (var item in Model)
         {
-            var isPast = item.Session.SessionTime < DateTime.Now;
+            @* Використовуємо обчислену властивість IsPast з ViewModel *@
+            var isPast = item.IsPast;
 
-            <tr>
-                <td>@Html.DisplayFor(modelItem => item.Session.Film.Name)</td>
-                <td>@item.Session.SessionTime.ToString("dd.MM.yyyy HH:mm")</td>
-                <td>@Html.DisplayFor(modelItem => item.Seat.Row)</td>
-                <td>@Html.DisplayFor(modelItem => item.Seat.NumberInRow)</td>
+            <tr data-viewer="@item.ViewerId" data-session="@item.SessionId" data-seat="@item.SeatId">
+                @* ⚠️ ВИПРАВЛЕНО: Прямий вивід замість DisplayFor *@
+                <td>@item.FilmName</td>
+                <td>@item.SessionTime.ToString("dd.MM.yyyy HH:mm")</td>
+                <td>@item.SeatRow</td>
+                <td>@item.SeatNumberInRow</td>
+
                 @if (User.IsInRole("superadmin"))
                 {
-                    <td>@Html.DisplayFor(modelItem => item.Viewer.Name)</td>
+                    @* ⚠️ ВИПРАВЛЕНО: Прямий вивід ViewerName *@
+                    <td>@item.ViewerName</td>
                 }
                 <td>
-                    @if (!isPast)
-                    {
-                        <a class="btn btn-warning btn-sm"
-                           asp-action="Edit"
-                           asp-route-viewerId="@item.ViewerId"
-                           asp-route-sessionId="@item.SessionId"
-                           asp-route-seatId="@item.SeatId">
-                            Редагувати
-                        </a>
-                    }
                     <a class="btn btn-info btn-sm"
                        asp-action="Details"
                        asp-route-viewerId="@item.ViewerId"
@@ -57,7 +75,15 @@
                     </a>
                     @if (!isPast)
                     {
-                        <button class="btn btn-danger btn-sm" onclick="confirmDelete('@Url.Action("Delete", "Bookings", new { viewerId = item.ViewerId, sessionId = item.SessionId, seatId = item.SeatId})', 'користувача @item.Viewer.Name на фільм @item.Session.Film.Name', 'бронювання')">
+                        <a class="btn btn-warning btn-sm"
+                           asp-action="Edit"
+                           asp-route-viewerId="@item.ViewerId"
+                           asp-route-sessionId="@item.SessionId"
+                           asp-route-seatId="@item.SeatId">
+                            Редагувати
+                        </a>
+                        <button class="btn btn-danger btn-sm"
+                                onclick="confirmDelete('@Url.Action("Delete", "Bookings", new { viewerId = item.ViewerId, sessionId = item.SessionId, seatId = item.SeatId })', 'користувача @item.ViewerName на фільм @item.FilmName', 'бронювання')">
                             Видалити
                         </button>
                     }
@@ -66,3 +92,431 @@
         }
     </tbody>
 </table>
+
+@section Scripts {
+    <script src="https://unpkg.com/@@microsoft/signalr/dist/browser/signalr.min.js"></script>
+
+    <script>
+        const isSuperAdmin = @(User.IsInRole("superadmin").ToString().ToLower());
+        let lastKnownBookingCount = @Model.Count();
+        let pollingTimer = null;
+        let currentPollingInterval = 5000;
+        let connection = null;
+
+                // ======= CONTROL FLAGS =======
+        let isPolling = false;
+        let isSignalR = false;
+
+        // ======= DISPLAY LOG (обмеження до 50) =======
+        function displayUpdate(update, source = "SignalR", highlight = 1) {
+          const ul = document.getElementById('updatesLog');
+          if (!ul) return;
+          const li = document.createElement('li');
+          li.textContent = `[${new Date().toLocaleTimeString()}] ${source}: ${update.filmName || update.FilmName || ''} — ${update.seatInfo || update.SeatInfo || ''} (${update.viewerName || update.ViewerName || ''})`;
+          li.style.padding = '6px 0';
+          ul.insertAdjacentElement('afterbegin', li);
+          while (ul.children.length > 50) ul.removeChild(ul.lastChild);
+        }
+
+        // ======= Нормалізація ключа =======
+        function keyOf(viewerId, sessionId, seatId) {
+          return `${String(viewerId ?? '')}__${String(sessionId ?? '')}__${String(seatId ?? '')}`;
+        }
+
+        // ======= addOrUpdateRowFromUpdate: оновлює існуючий рядок або додає, але
+        // якщо isPolling === true -> НЕ ДОБАВЛЯЄ нові рядки (щоб не конфліктувати з polling)
+        function addOrUpdateRowFromUpdate(data) {
+          const tbody = document.querySelector('table tbody');
+          if (!tbody) return;
+
+          const viewerId = data.viewerId || data.ViewerId;
+          const sessionId = data.sessionId || data.SessionId;
+          const seatId = data.seatId || data.SeatId;
+
+          const selector = (viewerId !== undefined && sessionId !== undefined && seatId !== undefined)
+            ? `tr[data-viewer="${viewerId}"][data-session="${sessionId}"][data-seat="${seatId}"]`
+            : null;
+
+          const existing = selector ? tbody.querySelector(selector) : null;
+
+          // Якщо polling активний — не вставляємо нові рядки (polling зробить повну заміну)
+          if (isPolling && !existing) {
+            return;
+          }
+
+          // Створюємо елемент (reuse buildRowElement logic)
+          const rowEl = buildRowElement(data);
+
+          if (existing) {
+            existing.replaceWith(rowEl);
+            rowEl.style.transition = 'background-color 1s';
+            rowEl.style.backgroundColor = '#fff3cd';
+            setTimeout(()=> rowEl.style.backgroundColor = '', 1200);
+          } else {
+            // Перед вставкою - видаляємо можливі дублікати (пасивні)
+            const duplicates = Array.from(tbody.querySelectorAll(`tr[data-viewer="${viewerId}"][data-session="${sessionId}"][data-seat="${seatId}"]`));
+            duplicates.forEach(d => d.remove());
+            rowEl.style.backgroundColor = '#e6ffed';
+            tbody.insertAdjacentElement('afterbegin', rowEl);
+          }
+        }
+
+        // ======= buildRowElement (без змін по суті, але уніфікована) =======
+        function buildRowElement(data) {
+          const viewerId = data.viewerId || data.ViewerId || '';
+          const sessionId = data.sessionId || data.SessionId || '';
+          const seatId = data.seatId || data.SeatId || '';
+
+          function parseSessionDate(s) {
+            if (!s) return null;
+            const d1 = new Date(s);
+            if (!isNaN(d1.getTime())) return d1;
+            const m = String(s).match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+            if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4]), Number(m[5]));
+            const m2 = String(s).match(/(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/);
+            if (m2) {
+              const now = new Date();
+              return new Date(now.getFullYear(), Number(m2[2]) - 1, Number(m2[1]), Number(m2[3]), Number(m2[4]));
+            }
+            return null;
+          }
+
+          const film = data.filmName || data.FilmName || data.film || '';
+          const rawTime = data.sessionTime || data.SessionTime || data.Timestamp || data.timestamp || '';
+          const dt = parseSessionDate(rawTime);
+          const sessionText = (dt && !isNaN(dt.getTime())) ? `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}` : (rawTime || '');
+
+          const seatInfo = data.seatInfo || data.SeatInfo || '';
+          const rowText = (String(seatInfo).split(', ')[0] || '').replace('Ряд ', '') || '';
+          const placeText = (String(seatInfo).split(', ')[1] || '').replace('Місце ', '') || '';
+
+          const tr = document.createElement('tr');
+          if (viewerId !== '') tr.setAttribute('data-viewer', String(viewerId));
+          if (sessionId !== '') tr.setAttribute('data-session', String(sessionId));
+          if (seatId !== '') tr.setAttribute('data-seat', String(seatId));
+
+          const filmCell = document.createElement('td'); filmCell.textContent = film;
+          const sessionCell = document.createElement('td'); sessionCell.textContent = sessionText;
+          const rowCell = document.createElement('td'); rowCell.textContent = rowText;
+          const placeCell = document.createElement('td'); placeCell.textContent = placeText;
+
+          tr.appendChild(filmCell);
+          tr.appendChild(sessionCell);
+          tr.appendChild(rowCell);
+          tr.appendChild(placeCell);
+
+          if (isSuperAdmin) {
+            const viewerCell = document.createElement('td'); viewerCell.textContent = data.viewerName || data.ViewerName || '';
+            tr.appendChild(viewerCell);
+          }
+
+          const isPast = dt !== null && !isNaN(dt.getTime()) && dt.getTime() < Date.now();
+
+          // Actions
+          const actionsCell = document.createElement('td');
+
+          const detailsBtn = document.createElement('a');
+          detailsBtn.className = 'btn btn-info btn-sm';
+          detailsBtn.style.marginRight = '6px';
+          detailsBtn.href = `/Bookings/Details?viewerId=${encodeURIComponent(viewerId)}&sessionId=${encodeURIComponent(sessionId)}&seatId=${encodeURIComponent(seatId)}`;
+          detailsBtn.textContent = 'Деталі';
+          actionsCell.appendChild(detailsBtn);
+
+          if (!isPast) {
+            const editBtn = document.createElement('a');
+            editBtn.className = 'btn btn-warning btn-sm';
+            editBtn.style.marginRight = '6px';
+            editBtn.href = `/Bookings/Edit?viewerId=${encodeURIComponent(viewerId)}&sessionId=${encodeURIComponent(sessionId)}&seatId=${encodeURIComponent(seatId)}`;
+            editBtn.textContent = 'Редагувати';
+            actionsCell.appendChild(editBtn);
+
+
+            //jcn nen 
+            //jcn nen 
+            //jcn nen 
+            //jcn nen
+            //jcn nen
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn-danger btn-sm';
+            delBtn.textContent = 'Видалити';
+            const deleteUrl = `/Bookings/Delete?viewerId=${encodeURIComponent(viewerId)}&sessionId=${encodeURIComponent(sessionId)}&seatId=${encodeURIComponent(seatId)}`;
+            const viewerName = data.viewerName || data.ViewerName || 'цього глядача';
+            const filmName = data.filmName || data.FilmName || 'цей фільм';
+            const messageParam1 = `користувача ${viewerName} на фільм ${filmName}`;
+            const messageParam2 = 'бронювання';
+            delBtn.onclick = () => {
+                // confirmDelete повинна бути глобально доступною функцією
+                if (typeof confirmDelete === 'function') {
+                    confirmDelete(deleteUrl, messageParam1, messageParam2);
+                } else {
+                    // Резервний варіант, якщо confirmDelete не визначена
+                    if (confirm(`Ви впевнені, що хочете видалити ${messageParam2} ${messageParam1}?`)) {
+                        window.location.href = deleteUrl;
+                    }
+                }
+            };
+            actionsCell.appendChild(delBtn);
+          } else {
+            tr.classList.add('booking-past');
+          }
+
+          tr.appendChild(actionsCell);
+
+          tr.dataset._new = '1';
+          return tr;
+        }
+
+        // ======= ОНОВЛЕНИЙ polling (з дедуплікацією та управлінням флагом) =======
+                // ---- helper: парсинг часу у кілька підтримуваних форматів ----
+        function parseSessionDateAny(s) {
+          if (!s) return null;
+          if (s instanceof Date) return s;
+          const str = String(s).trim();
+          // ISO / стандартний JS parse
+          const d1 = new Date(str);
+          if (!isNaN(d1.getTime())) return d1;
+
+          // dd.MM.yyyy HH:mm
+          let m = str.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+          if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4]), Number(m[5]));
+
+          // dd.MM HH:mm (припускаємо поточний рік)
+          m = str.match(/(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/);
+          if (m) {
+            const now = new Date();
+            return new Date(now.getFullYear(), Number(m[2]) - 1, Number(m[1]), Number(m[3]), Number(m[4]));
+          }
+
+          return null;
+        }
+
+        // ---- helper: парсинг номера ряду та місця з рядка "Ряд X, Місце Y" ----
+        function parseRowFromSeatInfo(seatInfo) {
+          if (!seatInfo) return Infinity;
+          const m = String(seatInfo).match(/Ряд\s*([0-9]+)/i);
+          return m ? parseInt(m[1], 10) : Infinity;
+        }
+        function parseSeatFromSeatInfo(seatInfo) {
+          if (!seatInfo) return Infinity;
+          const m = String(seatInfo).match(/Місце\s*([0-9]+)/i);
+          return m ? parseInt(m[1], 10) : Infinity;
+        }
+
+        // ======= ОНОВЛЕНИЙ startAdaptivePolling з дедуплікацією + сортуванням =======
+        async function startAdaptivePolling() {
+          // зупиняємо SignalR (якщо активний) і ставимо прапорець polling
+          if (connection && connection.state === signalR.HubConnectionState.Connected) {
+            try { await connection.stop(); } catch(e){ console.warn('Error stopping SignalR before polling', e); }
+            connection = null;
+          }
+          isSignalR = false;
+          isPolling = true;
+
+          if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+
+          currentPollingInterval = 3000;
+          let consecutiveErrors = 0;
+
+          async function poller() {
+            try {
+              const resp = await fetch('@Url.Action("GetRecentUpdates", "Bookings")', { cache: 'no-store' });
+              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+              const json = await resp.json();
+
+              // Підтримка властивостей Updates / updates
+              const updates = Array.isArray(json.Updates) ? json.Updates : (Array.isArray(json.updates) ? json.updates : []);
+              const tbody = document.querySelector('table tbody');
+
+              // Deduplicate incoming updates by key (viewer__session__seat)
+              const seen = new Set();
+              const unique = [];
+              for (const u of updates) {
+                const v = u.ViewerId ?? u.viewerId ?? '';
+                const s = u.SessionId ?? u.sessionId ?? '';
+                const seat = u.SeatId ?? u.seatId ?? '';
+                const k = keyOf(v, s, seat);
+                if (!seen.has(k)) {
+                  seen.add(k);
+                  unique.push(u);
+                }
+              }
+
+              // SORT: 1) SessionTime (спадно: найпізніший зверху), 2) Row (зростаюче), 3) Seat (зростаюче)
+              unique.sort((a, b) => {
+                const aTime = parseSessionDateAny(a.SessionTime ?? a.sessionTime ?? a.Timestamp ?? a.timestamp ?? '');
+                const bTime = parseSessionDateAny(b.SessionTime ?? b.sessionTime ?? b.Timestamp ?? b.timestamp ?? '');
+                const ta = aTime ? aTime.getTime() : 0;
+                const tb = bTime ? bTime.getTime() : 0;
+                if (tb !== ta) return tb - ta; // спадно по часу
+
+                const aSeatInfo = a.SeatInfo ?? a.seatInfo ?? '';
+                const bSeatInfo = b.SeatInfo ?? b.seatInfo ?? '';
+                const ar = parseRowFromSeatInfo(aSeatInfo);
+                const br = parseRowFromSeatInfo(bSeatInfo);
+                if (ar !== br) return ar - br; // ряд зростаюче
+
+                const as = parseSeatFromSeatInfo(aSeatInfo);
+                const bs = parseSeatFromSeatInfo(bSeatInfo);
+                return as - bs; // місце зростаюче
+              });
+
+              // Build fragment once (з відсортованого unique)
+              const frag = document.createDocumentFragment();
+              const incomingKeys = new Set();
+              unique.forEach(u => {
+                const v = u.ViewerId ?? u.viewerId ?? '';
+                const s = u.SessionId ?? u.sessionId ?? '';
+                const seat = u.SeatId ?? u.seatId ?? '';
+                incomingKeys.add(keyOf(v, s, seat));
+                const rowEl = buildRowElement({
+                  viewerId: v,
+                  sessionId: s,
+                  seatId: seat,
+                  filmName: u.FilmName ?? u.filmName ?? u.film ?? '',
+                  sessionTime: u.SessionTime ?? u.sessionTime ?? u.Timestamp ?? u.timestamp ?? '',
+                  seatInfo: u.SeatInfo ?? u.seatInfo ?? '',
+                  viewerName: u.ViewerName ?? u.viewerName ?? ''
+                });
+                frag.appendChild(rowEl);
+              });
+
+              // Atomically replace tbody (тільки якщо зміни)
+              if (tbody) {
+                const prevKeys = new Set(Array.from(tbody.querySelectorAll('tr')).map(r => keyOf(r.getAttribute('data-viewer'), r.getAttribute('data-session'), r.getAttribute('data-seat'))));
+                let changed = prevKeys.size !== incomingKeys.size;
+                if (!changed) {
+                  for (const k of incomingKeys) if (!prevKeys.has(k)) { changed = true; break; }
+                }
+
+                if (changed) {
+                  tbody.innerHTML = '';
+                  tbody.appendChild(frag);
+                  // коротка анімація для нових
+                  Array.from(tbody.querySelectorAll('tr')).forEach(r => {
+                    if (r.dataset._new === '1') {
+                      r.style.transition = 'background-color .9s';
+                      r.style.backgroundColor = '#e6ffed';
+                      setTimeout(()=> r.style.backgroundColor = '', 900);
+                      delete r.dataset._new;
+                    }
+                  });
+                  // одне зведене повідомлення
+                  displayUpdate({ FilmName: 'Adaptive Polling', SeatInfo: `Оновлено ${incomingKeys.size} записів`, ViewerName: '' }, 'Adaptive Polling');
+                }
+              }
+
+              // Оновлюємо лічильник і адаптивний інтервал
+              lastKnownBookingCount = (typeof json.Count === 'number' ? json.Count : (typeof json.count === 'number' ? json.count : incomingKeys.size));
+              if (incomingKeys.size > 0) currentPollingInterval = Math.max(1000, currentPollingInterval - 500);
+              else currentPollingInterval = Math.min(30000, currentPollingInterval + 1000);
+
+              consecutiveErrors = 0;
+              clearInterval(pollingTimer);
+              pollingTimer = setInterval(poller, currentPollingInterval);
+            } catch (err) {
+              consecutiveErrors++;
+              console.warn('[AdaptivePolling] error (consecutive):', consecutiveErrors, err);
+              const backoff = Math.min(60000, 2000 * Math.pow(2, Math.min(consecutiveErrors, 6)));
+              currentPollingInterval = backoff;
+              clearInterval(pollingTimer);
+              pollingTimer = setInterval(poller, currentPollingInterval);
+              if (consecutiveErrors === 1) displayUpdate({ FilmName: 'SERVER', SeatInfo: 'Немає зв\'язку із сервером', ViewerName: '' }, 'Adaptive Polling (error)');
+            }
+          }
+
+          // старт
+          poller();
+          pollingTimer = setInterval(poller, currentPollingInterval);
+        }
+
+
+        // ======= SIGNALR START/STOP вже керують флагом isSignalR / isPolling =======
+        function startSignalR() {
+          if (isPolling && pollingTimer) {
+            clearInterval(pollingTimer);
+            pollingTimer = null;
+            isPolling = false;
+          }
+
+          if (connection && connection.state === signalR.HubConnectionState.Connected) {
+            console.warn("SignalR вже підключено.");
+            return;
+          }
+
+          connection = new signalR.HubConnectionBuilder()
+            .withUrl('@Url.Content("~/hubs/booking")')
+            .withAutomaticReconnect()
+            .build();
+
+          connection.onreconnecting(error => console.warn('SignalR reconnecting...', error));
+          connection.onreconnected(id => console.log('SignalR reconnected. id=', id));
+          connection.onclose(error => console.warn('SignalR closed', error));
+
+          connection.on("ReceiveBookingUpdate", (update) => {
+            // Якщо зараз polling активний — не вставляємо нові (polling відповідає за tbody)
+            if (isPolling) {
+              // якщо існуючий рядок є — оновимо його (щоб не пропустити quick update)
+              const v = update.viewerId || update.ViewerId;
+              const s = update.sessionId || update.SessionId;
+              const seat = update.seatId || update.SeatId;
+              const selector = `table tbody tr[data-viewer="${v}"][data-session="${s}"][data-seat="${seat}"]`;
+              const existing = document.querySelector(selector);
+              if (existing) {
+                addOrUpdateRowFromUpdate({
+                  viewerId: v, sessionId: s, seatId: seat,
+                  filmName: update.filmName || update.FilmName,
+                  sessionTime: update.sessionTime || update.SessionTime,
+                  seatInfo: update.seatInfo || update.SeatInfo,
+                  viewerName: update.viewerName || update.ViewerName
+                });
+              }
+              return;
+            }
+
+            // якщо signalR активний — ставимо флаг
+            isSignalR = true;
+
+            const op = (update.operation || update.Operation || '').toLowerCase();
+            if (op === 'deleted') {
+              const v = update.viewerId || update.ViewerId;
+              const s = update.sessionId || update.SessionId;
+              const seat = update.seatId || update.SeatId;
+              const row = document.querySelector(`table tbody tr[data-viewer="${v}"][data-session="${s}"][data-seat="${seat}"]`);
+              if (row) {
+                row.style.transition = 'opacity .6s';
+                row.style.opacity = '0.2';
+                setTimeout(()=> row.remove(), 700);
+              }
+              displayUpdate(update, 'SignalR (WS)');
+            } else {
+              addOrUpdateRowFromUpdate({
+                viewerId: update.viewerId || update.ViewerId,
+                sessionId: update.sessionId || update.SessionId,
+                seatId: update.seatId || update.SeatId,
+                filmName: update.filmName || update.FilmName,
+                sessionTime: update.sessionTime || update.SessionTime,
+                seatInfo: update.seatInfo || update.SeatInfo,
+                viewerName: update.viewerName || update.ViewerName
+              });
+              displayUpdate(update, 'SignalR (WS)');
+            }
+          });
+
+          connection.start()
+            .then(() => {
+              console.log('SignalR Connected. state=', connection.state);
+              isSignalR = true;
+              isPolling = false;
+              if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+            })
+            .catch(err => console.error('SignalR start failed:', err));
+        }
+
+        function stopAdaptivePolling() {
+          if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+          isPolling = false;
+        }
+
+    </script>
+
+}

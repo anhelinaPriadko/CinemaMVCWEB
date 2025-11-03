@@ -5,6 +5,7 @@ using CinemaDomain.Model;
 using CinemaInfrastructure;
 using CinemaInfrastructure.Services;
 using CinemaInfrastructure.ViewModel;
+using CinemaInfrastructure.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -74,6 +75,11 @@ builder.Services.AddScoped<AzureSearchService>();
 builder.Services.AddScoped<IImportService<Film>, CategoryFilmCompanyImportService>();
 builder.Services.AddScoped<IExportService<Film>, FilmExportService>();
 
+builder.Services.AddScoped<BookingService>();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+});
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -116,6 +122,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHub<BookingHub>("/hubs/booking");
 app.MapStaticAssets();
 
 app.MapControllerRoute(

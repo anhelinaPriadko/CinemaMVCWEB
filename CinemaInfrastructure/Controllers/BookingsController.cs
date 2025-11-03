@@ -1,13 +1,16 @@
-﻿using System;
+﻿using CinemaDomain.Model;
+using CinemaInfrastructure;
+using CinemaInfrastructure.Models;
+using CinemaInfrastructure.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using CinemaDomain.Model;
-using CinemaInfrastructure;
-using Microsoft.AspNetCore.Identity;
 
 namespace CinemaInfrastructure.Controllers
 {
@@ -15,36 +18,43 @@ namespace CinemaInfrastructure.Controllers
     {
         private readonly CinemaContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly BookingService _bookingService;
 
-        public BookingsController(CinemaContext context, UserManager<User> userManager)
+        public BookingsController(CinemaContext context, UserManager<User> userManager, BookingService bookingService)
         {
             _context = context;
             _userManager = userManager;
+            _bookingService = bookingService;
         }
 
         // GET: Bookings
         public async Task<IActionResult> Index()
         {
-            IQueryable<Booking> bookingsQuery = _context.Bookings.Include(b => b.Seat)
-                .Include(b => b.Seat)
-                    .ThenInclude(s => s.Hall)
-                        .ThenInclude(h => h.HallType)
-                .Include(b => b.Session)
-                    .ThenInclude(s => s.Film)
-                        .ThenInclude(f => f.Company)
-                .Include(b => b.Session)
-                    .ThenInclude(s => s.Film)
-                        .ThenInclude(f => f.FilmCategory)
-                .Include(b => b.Viewer);
+            IQueryable<Booking> bookingsQuery = _context.Bookings; // Починаємо без Include
 
             if (User.IsInRole("user"))
             {
-                var currentUserId = _userManager.GetUserId(User); // отримуємо Id поточного користувача
+                var currentUserId = _userManager.GetUserId(User);
                 bookingsQuery = bookingsQuery.Where(b => b.Viewer.UserId == currentUserId);
             }
 
-            var bookings = await bookingsQuery.OrderByDescending(b => b.Session.SessionTime)
-                                              .ToListAsync();
+            // ПРОЕКЦІЯ (SELECT): Отримуємо лише потрібні дані одним запитом (JOIN)
+            var bookings = await bookingsQuery
+                .OrderByDescending(b => b.Session.SessionTime)
+                .Select(b => new BookingIndexViewModel
+                {
+                    ViewerId = b.ViewerId,
+                    SessionId = b.SessionId,
+                    SeatId = b.SeatId,
+                    FilmName = b.Session.Film.Name,
+                    SessionTime = b.Session.SessionTime,
+                    SeatRow = b.Seat.Row,
+                    SeatNumberInRow = b.Seat.NumberInRow,
+                    ViewerName = b.Viewer.Name
+                })
+                .ToListAsync();
+
+            // ⚠️ Змінено: View тепер приймає ViewModel
             return View(bookings);
         }
 
@@ -118,6 +128,36 @@ namespace CinemaInfrastructure.Controllers
 
 
             return View("Index", bookings);
+        }
+
+        /// <summary>
+        /// Ендпоінт для Adaptive Polling. Повертає список всіх бронювань та їх загальну кількість.
+        /// Клієнт буде використовувати цю загальну кількість для визначення змін.
+        /// </summary>
+        public async Task<IActionResult> GetRecentUpdates()
+        {
+            var allBookings = await _context.Bookings
+                .Include(b => b.Session)
+                    .ThenInclude(s => s.Film)
+                .Include(b => b.Seat)
+                .Include(b => b.Viewer)
+                .ToListAsync();
+
+            // Перетворюємо у ViewModel для безпечної передачі
+            var updates = allBookings
+                .Select(b => new
+                {
+                    ViewerId = b.ViewerId,
+                    SessionId = b.SessionId,
+                    SeatId = b.SeatId,
+                    FilmName = b.Session?.Film?.Name ?? "N/A",
+                    SeatInfo = b.Seat != null ? $"Ряд {b.Seat.Row}, Місце {b.Seat.NumberInRow}" : "N/A",
+                    ViewerName = b.Viewer?.Name ?? "Анонім",
+                    SessionTime = b.Session.SessionTime.ToString("dd.MM.yyyy HH:mm")
+                })
+                .ToList();
+
+            return Json(new { Count = updates.Count, Updates = updates, LastUpdate = DateTime.UtcNow });
         }
 
         // GET: Bookings/Details/5
@@ -272,7 +312,6 @@ namespace CinemaInfrastructure.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("ViewerId,SessionId,SeatId")] Booking booking)
         {
-            // Завантаження пов’язаних даних
             booking.Viewer = await _context.Viewers
                 .Include(v => v.User)
                 .FirstOrDefaultAsync(v => v.Id == booking.ViewerId);
@@ -290,26 +329,53 @@ namespace CinemaInfrastructure.Controllers
             ModelState.Clear();
             TryValidateModel(booking);
 
-            // Перевірка дублювання бронювання
             if (checkDublication(booking.SessionId, booking.SeatId))
             {
                 ModelState.AddModelError("", "Дане місце на цей сеанс вже заброньовано!");
             }
 
-            // Якщо ModelState не валідний, потрібно відновити дані для dropdown’ів
+            var films = _context.Films.ToList();
+            var viewers = _context.Viewers.ToList();
+
             if (!ModelState.IsValid)
             {
-                var films = _context.Films.ToList();
-                var viewers = _context.Viewers.ToList();
                 ViewBag.Films = films;
                 ViewData["ViewerId"] = new SelectList(viewers, "Id", "Name", booking.ViewerId);
-                // Для сеансів, рядів та місць можна передбачити значення за замовчуванням
                 return View(booking);
             }
 
-            _context.Add(booking);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                _context.Add(booking);
+                await _context.SaveChangesAsync();
+
+                var bookingForNotification = await _context.Bookings
+                    .Include(b => b.Session).ThenInclude(s => s.Film)
+                    .Include(b => b.Seat)
+                    .Include(b => b.Viewer)
+                    .FirstOrDefaultAsync(b => b.ViewerId == booking.ViewerId
+                                           && b.SessionId == booking.SessionId
+                                           && b.SeatId == booking.SeatId);
+
+                if (bookingForNotification != null)
+                {
+                    await _bookingService.SendBookingNotificationAsync(bookingForNotification, "Created");
+                }
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError("", "Помилка бази даних: Не вдалося створити бронювання.");
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Виникла несподівана помилка.");
+            }
+
+            ViewBag.Films = films;
+            ViewData["ViewerId"] = new SelectList(viewers, "Id", "Name", booking.ViewerId);
+            return View(booking);
         }
 
 
@@ -403,6 +469,20 @@ namespace CinemaInfrastructure.Controllers
             _context.Bookings.Add(newBooking);
             await _context.SaveChangesAsync();
 
+            var newBookingForNotification = await _context.Bookings
+            .Include(b => b.Session).ThenInclude(s => s.Film)
+            .Include(b => b.Seat)
+            .Include(b => b.Viewer)
+            .FirstOrDefaultAsync(b => b.ViewerId == newBooking.ViewerId
+                                   && b.SessionId == newBooking.SessionId
+                                   && b.SeatId == newBooking.SeatId);
+
+            if (newBookingForNotification != null)
+            {
+                await _bookingService.SendBookingNotificationAsync(oldBooking, "Deleted");
+                await _bookingService.SendBookingNotificationAsync(newBookingForNotification, "Updated");
+            }
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -451,8 +531,9 @@ namespace CinemaInfrastructure.Controllers
             {
                 _context.Bookings.Remove(booking);
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Бронювання користувача \"{booking.Viewer.Name}\"" +
-                    $" на фільм \"{booking.Session.Film.Name}\"  успішно видалено!";
+
+                TempData["SuccessMessage"] = $"Бронювання користувача \"{booking.Viewer.Name}\" на фільм \"{booking.Session.Film.Name}\" успішно видалено!";
+                await _bookingService.SendBookingNotificationAsync(booking, "Deleted");
             }
             return RedirectToAction(nameof(Index));
         }

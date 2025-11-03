@@ -1,0 +1,190 @@
+﻿@* Views/Bookings/Monitor.cshtml - ФІНАЛЬНА ВЕРСІЯ *@
+
+@{
+    ViewData["Title"] = "Моніторинг Бронювань (C10/C11)";
+}
+
+<h1>📊 Моніторинг Бронювань у Реальному Часі</h1>
+<p>
+    Цей дашборд використовується для порівняння трьох механізмів доставки даних:
+    <strong>Web Sockets / Long Poll</strong> (через SignalR) та <strong>Adaptive Polling</strong>.
+</p>
+<hr />
+
+<div style="margin-bottom: 20px;">
+    <h2>Керування підключенням</h2>
+    <button onclick="startSignalR()" style="background-color: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer;">
+        1. Запустити SignalR (Web Sockets / Long Poll)
+    </button>
+    <button onclick="startAdaptivePolling()" style="background-color: #008CBA; color: white; padding: 10px; border: none; cursor: pointer;">
+        2. Запустити Adaptive Polling
+    </button>
+    <button onclick="window.location.reload();" style="background-color: #f44336; color: white; padding: 10px; border: none; cursor: pointer;">
+        Зупинити та Перезавантажити
+    </button>
+    <p><i>⚠️ Для порівняльного аналізу завжди запускайте лише один метод! Перевіряйте вкладку Network (Мережа) у DevTools.</i></p>
+</div>
+
+<h3>Лог оновлень:</h3>
+<ul id="updatesLog" style="list-style-type: none; padding: 0;">
+</ul>
+
+@section Scripts {
+    <script src="https://unpkg.com/@@microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+                // =================================================================
+        // 🚀 JavaScript-Логіка для Monitor.cshtml (СЕКЦІЯ  Scripts)
+        // =================================================================
+
+        // ІНІЦІАЛІЗАЦІЯ ЗМІННИХ
+        let lastKnownBookingCount = 0;
+        // Використовуємо @Url.Action для коректного формування шляху до контролера
+        const POLLING_ENDPOINT = '@Url.Action("GetRecentUpdates", "Bookings")';
+        let pollingTimer = null;
+        let currentPollingInterval = 5000;
+        let connection = null; // Змінна для об'єкта підключення SignalR
+
+        // =================================================================
+        // Спільні функції
+        // =================================================================
+
+        /**
+         * Відображає повідомлення у лозі.
+         */
+        function displayUpdate(data, source, newItems = 0) {
+            const logArea = document.getElementById('updatesLog');
+            if (!logArea) return;
+
+            const time = new Date().toLocaleTimeString();
+            const newEntry = document.createElement('li');
+            newEntry.style.borderBottom = '1px solid #eee';
+            newEntry.style.padding = '5px 0';
+            newEntry.style.color = (source.includes("SignalR")) ? '#007bff' : '#28a745';
+
+            let message;
+            if (source.includes("Polling")) {
+                // Дані Polling - це об'єкти з GetRecentUpdates
+                message = `ЗНАЙДЕНО ${newItems} нових: ${data.FilmName} (${data.SeatInfo}).`;
+            } else {
+                // Дані SignalR - це BookingNotificationViewModel
+                message = `${data.FilmName} (${data.SeatInfo}) для ${data.ViewerName}.`;
+            }
+
+            newEntry.innerHTML = `
+                [${time}]
+                <strong>${source}:</strong>
+                ${message}
+            `;
+            logArea.prepend(newEntry);
+        }
+
+        // =================================================================
+        // 🚀 1. SIGNALR: Web Sockets & Long Poll (WS/LP)
+        // =================================================================
+
+        function startSignalR() {
+            // Виправлення: використовуємо коректну назву об'єкта signalR.HubConnectionState
+            if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                console.warn("SignalR вже підключено.");
+                return;
+            }
+
+            if (pollingTimer) {
+                clearInterval(pollingTimer);
+                pollingTimer = null;
+                console.log("Adaptive Polling зупинено.");
+            }
+
+            // Створення підключення
+            connection = new signalR.HubConnectionBuilder()
+                // Важливо використовувати @Url.Content для коректного шляху до хабу
+                .withUrl('@Url.Content("~/hubs/booking")')
+                .withAutomaticReconnect()
+                .build();
+
+            // Обробка вхідних повідомлень
+            connection.on("ReceiveBookingUpdate", (update) => {
+                displayUpdate(update, `SignalR (WS/LP)`, 1);
+                lastKnownBookingCount++;
+            });
+
+            // Запуск з'єднання
+        connection.start()
+                .then(() => {
+                    // Використовуємо коректну властивість.
+                    // Якщо connection.transportName повертає undefined,
+                    // ми знаємо, що він все одно використовував WebSocket (див. лог консолі).
+                    const transport = connection.transportName ||
+                                     (connection.transport && connection.transport.name) ||
+                                     "WebSocket"; // Якщо нічого не визначено, за логом це WS
+
+                    console.log(`SignalR Connected! Транспорт: ${transport}. (WS або Long Polling)`);
+                    alert(`SignalR підключено! Транспорт: ${transport}`);
+                })
+                .catch(err => console.error("Помилка підключення SignalR:", err.toString()));
+        }
+
+        // =================================================================
+        // 🚀 2. ADAPTIVE (FREQUENT) POLLING
+        // =================================================================
+
+        async function checkUpdates() {
+            try {
+                // Виправлення: використовуємо коректну назву об'єкта
+                if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                    return;
+                }
+
+                const response = await fetch(POLLING_ENDPOINT);
+                const data = await response.json();
+
+                if (data.Count > lastKnownBookingCount) {
+                    const newCount = data.Count - lastKnownBookingCount;
+                    const latestUpdate = data.Updates[data.Updates.length - 1];
+                    displayUpdate(latestUpdate, `Polling`, newCount);
+
+                    lastKnownBookingCount = data.Count;
+
+                    // АДАПТИВНА ЛОГІКА: Прискорення
+                    if (currentPollingInterval > 1000) {
+                        currentPollingInterval = 1000;
+                        clearInterval(pollingTimer);
+                        pollingTimer = setInterval(checkUpdates, currentPollingInterval);
+                    }
+
+                } else if (currentPollingInterval < 5000) {
+                    // АДАПТИВНА ЛОГІКА: Повернення до повільного опитування
+                    currentPollingInterval = 5000;
+                    clearInterval(pollingTimer);
+                    pollingTimer = setInterval(checkUpdates, currentPollingInterval);
+                } else {
+                    console.log(`[POLLING] Немає нових оновлень. (Інтервал: ${currentPollingInterval} мс)`);
+                }
+
+            } catch (error) {
+                console.error("Помилка під час Polling:", error);
+            }
+        }
+
+        function startAdaptivePolling() {
+            // Виправлення: використовуємо коректну назву об'єкта
+            if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                connection.stop();
+                console.log("SignalR зупинено.");
+            }
+
+            if (pollingTimer) {
+                console.warn("Adaptive Polling вже запущено.");
+                return;
+            }
+
+            // Ініціалізація: отримуємо початкову кількість
+            fetch(POLLING_ENDPOINT).then(res => res.json()).then(data => {
+                lastKnownBookingCount = data.Count;
+                currentPollingInterval = 5000;
+                pollingTimer = setInterval(checkUpdates, currentPollingInterval);
+                alert("Adaptive Polling запущено! Перевіряйте лог консолі та Network.");
+            }).catch(err => console.error("Помилка ініціалізації Polling:", err));
+        }
+    </script>
+}
